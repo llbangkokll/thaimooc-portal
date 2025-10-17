@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model banners {
+  id              String   @id
+  title           String
+  titleEn         String
+  subtitle        String?
+  subtitleEn      String?
+  description     String?  @db.Text
+  descriptionEn   String?  @db.Text
+  buttonText      String?
+  buttonTextEn    String?
+  imageId         String
+  linkUrl         String?  @db.Text
+  backgroundColor String?  @db.Text
+  textColor       String?
+  accentColor     String?
+  isActive        Boolean  @default(true)
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  overlayImageId  String?  @db.Text
+  templateId      String?
+}
+
+model categories {
+  id               String              @id
+  name             String
+  nameEn           String
+  icon             String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime
+  courseCategories course_categories[]
+}
+
+model courses {
+  id                 String                @id
+  title              String
+  titleEn            String
+  description        String                @db.Text
+  learningOutcomes   String?               @db.Text
+  targetAudience     String?               @db.Text
+  prerequisites      String?               @db.Text
+  tags               String?               @db.Text
+  assessmentCriteria String?               @db.Text
+  courseUrl          String?               @db.Text
+  videoUrl           String?               @db.Text
+  contentStructure   String?               @db.Text
+  institutionId      String?
+  instructorId       String?
+  imageId            String?
+  level              String?
+  teachingLanguage   String?
+  durationHours      Int?
+  hasCertificate     Boolean               @default(false)
+  enrollCount        Int                   @default(0)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime
+  bannerImageId      String?
+  courseCategories   course_categories[]
+  courseCourseTypes  course_course_types[]
+  courseInstructors  course_instructors[]
+  institutions       institutions?         @relation(fields: [institutionId], references: [id])
+  instructors        instructors?          @relation(fields: [instructorId], references: [id])
+
+  @@index([institutionId])
+  @@index([instructorId])
+}
+
+model course_categories {
+  courseId   String
+  categoryId String
+  course     courses    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  category   categories @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, categoryId])
+  @@index([courseId])
+  @@index([categoryId])
+}
+
+model course_types {
+  id                String                @id @default(cuid())
+  name              String
+  nameEn            String
+  icon              String?
+  description       String?               @db.Text
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime
+  courseCourseTypes course_course_types[]
+}
+
+model course_course_types {
+  courseId     String
+  courseTypeId String
+  course       courses      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseType   course_types @relation(fields: [courseTypeId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, courseTypeId])
+  @@index([courseId])
+  @@index([courseTypeId])
+}
+
+model image_placeholders {
+  id       String @id
+  url      String @db.Text
+  title    String
+  category String
+}
+
+model institutions {
+  id           String        @id
+  name         String
+  nameEn       String
+  abbreviation String
+  logoUrl      String        @db.Text
+  website      String?       @db.Text
+  description  String?       @db.Text
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime
+  courses      courses[]
+  instructors  instructors[]
+}
+
+model instructors {
+  id                String               @id
+  name              String
+  nameEn            String
+  title             String
+  institutionId     String
+  bio               String?              @db.Text
+  imageUrl          String?              @db.Text
+  email             String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime
+  courses           courses[]
+  courseInstructors course_instructors[]
+  institutions      institutions         @relation(fields: [institutionId], references: [id])
+
+  @@index([institutionId])
+}
+
+model course_instructors {
+  courseId     String
+  instructorId String
+  course       courses     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructor   instructors @relation(fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, instructorId])
+  @@index([courseId])
+  @@index([instructorId])
+}
+
+model news {
+  id        String   @id
+  title     String
+  content   String   @db.LongText
+  imageId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model webapp_settings {
+  id           String   @id
+  siteName     String
+  siteLogo     String   @db.Text
+  contactEmail String
+  contactPhone String
+  address      String   @db.Text
+  aboutUs      String?  @db.Text
+  aboutUsEn    String?  @db.Text
+  mapUrl       String?  @db.Text
+  facebookUrl  String?  @db.Text
+  twitterUrl   String?  @db.Text
+  youtubeUrl   String?  @db.Text
+  instagramUrl String?  @db.Text
+  lineUrl      String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+}
+
+model admin_users {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String   // Will store hashed password
+  name      String
+  email     String   @unique
+  role      String   @default("admin") // admin, super_admin
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
