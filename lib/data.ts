@@ -182,7 +182,7 @@ export async function deleteInstructor(id: string): Promise<boolean> {
 export async function getCourses(): Promise<types.Course[]> {
   return prisma.courses.findMany({
     include: {
-      courseCategories: {
+      course_categories: {
         select: {
           categoryId: true,
         },
@@ -196,12 +196,12 @@ export async function getCourseById(id: string): Promise<types.Course | null> {
   const course = await prisma.courses.findUnique({
     where: { id },
     include: {
-      courseCategories: {
+      course_categories: {
         select: {
           categoryId: true,
         },
       },
-      courseCourseTypes: {
+      course_course_types: {
         select: {
           courseTypeId: true,
         },
@@ -214,8 +214,8 @@ export async function getCourseById(id: string): Promise<types.Course | null> {
   // Transform to match Course type with categoryIds and courseTypeIds
   return {
     ...course,
-    categoryIds: course.courseCategories.map((cc: any) => cc.categoryId),
-    courseTypeIds: course.courseCourseTypes.map((cct: any) => cct.courseTypeId),
+    categoryIds: course.course_categories.map((cc: any) => cc.categoryId),
+    courseTypeIds: course.course_course_types.map((cct: any) => cct.courseTypeId),
   } as types.Course;
 }
 

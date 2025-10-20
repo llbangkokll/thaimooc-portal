@@ -8,7 +8,7 @@ datasource db {
 }
 
 model admin_users {
-  id        String    @id
+  id        String    @id @default(cuid())
   username  String    @unique
   password  String
   name      String
@@ -17,11 +17,11 @@ model admin_users {
   isActive  Boolean   @default(true)
   lastLogin DateTime?
   createdAt DateTime  @default(now())
-  updatedAt DateTime
+  updatedAt DateTime  @updatedAt
 }
 
 model banners {
-  id              String   @id
+  id              String   @id @default(cuid())
   title           String
   titleEn         String
   subtitle        String?
@@ -31,7 +31,7 @@ model banners {
   isActive        Boolean  @default(true)
   order           Int      @default(0)
   createdAt       DateTime @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime @updatedAt
   overlayImageId  String?  @db.Text
   templateId      String?
   accentColor     String?
@@ -44,12 +44,12 @@ model banners {
 }
 
 model categories {
-  id                String              @id
+  id                String              @id @default(cuid())
   name              String
   nameEn            String
   icon              String
   createdAt         DateTime            @default(now())
-  updatedAt         DateTime
+  updatedAt         DateTime            @updatedAt
   course_categories course_categories[]
 }
 
@@ -87,18 +87,18 @@ model course_instructors {
 }
 
 model course_types {
-  id                  String                @id
+  id                  String                @id @default(cuid())
   name                String
   nameEn              String
   description         String?               @db.Text
   createdAt           DateTime              @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime              @updatedAt
   icon                String?
   course_course_types course_course_types[]
 }
 
 model courses {
-  id                  String                @id
+  id                  String                @id @default(cuid())
   title               String
   titleEn             String
   description         String                @db.Text
@@ -110,7 +110,7 @@ model courses {
   hasCertificate      Boolean               @default(false)
   enrollCount         Int                   @default(0)
   createdAt           DateTime              @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime              @updatedAt
   bannerImageId       String?
   learningOutcomes    String?               @db.Text
   teachingLanguage    String?
@@ -132,14 +132,14 @@ model courses {
 }
 
 model image_placeholders {
-  id       String @id
+  id       String @id @default(cuid())
   url      String @db.Text
   title    String
   category String
 }
 
 model institutions {
-  id           String        @id
+  id           String        @id @default(cuid())
   name         String
   nameEn       String
   abbreviation String
@@ -147,13 +147,13 @@ model institutions {
   website      String?       @db.Text
   description  String?       @db.Text
   createdAt    DateTime      @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime      @updatedAt
   courses      courses[]
   instructors  instructors[]
 }
 
 model instructors {
-  id                 String               @id
+  id                 String               @id @default(cuid())
   name               String
   nameEn             String
   title              String
@@ -162,7 +162,7 @@ model instructors {
   imageUrl           String?              @db.Text
   email              String?
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime             @updatedAt
   course_instructors course_instructors[]
   courses            courses[]
   institutions       institutions         @relation(fields: [institutionId], references: [id])
@@ -171,16 +171,16 @@ model instructors {
 }
 
 model news {
-  id        String   @id
+  id        String   @id @default(cuid())
   title     String
   content   String   @db.LongText
   imageId   String
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
 }
 
 model webapp_settings {
-  id           String   @id
+  id           String   @id @default(cuid())
   siteName     String
   siteLogo     String   @db.Text
   contactEmail String
@@ -192,7 +192,7 @@ model webapp_settings {
   instagramUrl String?  @db.Text
   lineUrl      String?  @db.Text
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime @updatedAt
   aboutUs      String?  @db.Text
   aboutUsEn    String?  @db.Text
   mapUrl       String?  @db.Text

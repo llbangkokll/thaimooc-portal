@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const courses = await prisma.courses.findMany({
       where: {
         ...(categoryId && {
-          courseCategories: {
+          course_categories: {
             some: { categoryId }
           }
         }),
@@ -19,17 +19,17 @@ export async function GET(request: NextRequest) {
         ...(level && { level }),
       },
       include: {
-        courseCategories: {
+        course_categories: {
           select: {
             categoryId: true,
           },
         },
-        courseCourseTypes: {
+        course_course_types: {
           select: {
             courseTypeId: true,
           },
         },
-        courseInstructors: {
+        course_instructors: {
           select: {
             instructorId: true,
           },
@@ -101,26 +101,26 @@ export async function POST(request: NextRequest) {
         durationHours: body.durationHours || 0,
         hasCertificate: body.hasCertificate || false,
         enrollCount: body.enrollCount || 0,
-        courseCategories: {
+        course_categories: {
           create: body.categoryIds.map((categoryId: string) => ({
             categoryId,
           })),
         },
         ...(body.courseTypeIds && Array.isArray(body.courseTypeIds) && body.courseTypeIds.length > 0 && {
-          courseCourseTypes: {
+          course_course_types: {
             create: body.courseTypeIds.map((courseTypeId: string) => ({
               courseTypeId,
             })),
           },
         }),
         ...(body.instructorIds && Array.isArray(body.instructorIds) && body.instructorIds.length > 0 ? {
-          courseInstructors: {
+          course_instructors: {
             create: body.instructorIds.map((instructorId: string) => ({
               instructorId,
             })),
           },
         } : body.instructorId ? {
-          courseInstructors: {
+          course_instructors: {
             create: [{ instructorId: body.instructorId }],
           },
         } : {}),

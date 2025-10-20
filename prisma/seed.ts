@@ -18041,12 +18041,10 @@ async function main() {
 
   // Seed WebApp Settings
   console.log('⚙️  Seeding settings...');
-  if (webappSettings.length > 0) {
-    const settings = webappSettings[0];
-    await prisma.webapp_settings.upsert({
-      where: { id: settings.id },
-      update: {},
-      create: {
+  await prisma.webapp_settings.upsert({
+    where: { id: "settings-1" },
+    update: {},
+    create: {
   "id": "settings-1",
   "siteName": "Thai MOOC",
   "siteLogo": "/uploads/1759417597002-logo.png",
@@ -18065,7 +18063,6 @@ async function main() {
   "updatedAt": "2025-10-02T15:09:55.053Z"
 },
     });
-  }
 
   console.log('✅ Seed completed successfully!');
   console.log(`

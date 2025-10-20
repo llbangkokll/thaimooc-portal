@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    platform: linux/amd64  # รองรับทั้ง Windows และ Mac
+    container_name: thai-mooc-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-thai_mooc}
+      MYSQL_USER: ${MYSQL_USER:-thaimooc}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-thaimoocpassword}
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./prisma/schema.prisma:/docker-entrypoint-initdb.d/schema.prisma:ro
+    networks:
+      - thai-mooc-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js Web Application
+  webapp:
+    image: lifeskill/thai-mooc-webapp:latest
+    platform: linux/amd64  # รองรับทั้ง Windows และ Mac
+    container_name: thai-mooc-webapp
+    restart: always
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-thaimooc}:${MYSQL_PASSWORD:-thaimoocpassword}@mysql:3306/${MYSQL_DATABASE:-thai_mooc}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      NODE_ENV: production
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - thai-mooc-network
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        sleep 10 &&
+        echo 'Running Prisma migrations...' &&
+        npx prisma db push --skip-generate &&
+        echo 'Seeding database...' &&
+        npx prisma db seed || true &&
+        echo 'Starting application...' &&
+        node server.js
+      "
+
+networks:
+  thai-mooc-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
