@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/mysql-direct";
+import { apiCache } from "@/lib/api-cache";
 
 interface Course {
   id: string;
@@ -30,26 +31,6 @@ interface Course {
   courseInstructors?: { instructorId: string }[];
 }
 
-// Simple in-memory cache with TTL
-const cache = new Map<string, { data: any; expires: number }>();
-const CACHE_TTL = 60 * 1000; // 1 minute
-
-function getCached(key: string) {
-  const cached = cache.get(key);
-  if (cached && cached.expires > Date.now()) {
-    return cached.data;
-  }
-  cache.delete(key);
-  return null;
-}
-
-function setCache(key: string, data: any) {
-  cache.set(key, {
-    data,
-    expires: Date.now() + CACHE_TTL
-  });
-}
-
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -61,7 +42,7 @@ export async function GET(request: NextRequest) {
     const cacheKey = `courses:${categoryId || 'all'}:${institutionId || 'all'}:${level || 'all'}`;
 
     // Check cache first
-    const cachedData = getCached(cacheKey);
+    const cachedData = apiCache.get(cacheKey);
     if (cachedData) {
       return NextResponse.json(cachedData);
     }
@@ -99,7 +80,7 @@ export async function GET(request: NextRequest) {
         data: [],
         count: 0,
       };
-      setCache(cacheKey, response);
+      apiCache.set(cacheKey, response);
       return NextResponse.json(response);
     }
 
@@ -163,7 +144,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Cache the response
-    setCache(cacheKey, response);
+    apiCache.set(cacheKey, response);
 
     return NextResponse.json(response);
   } catch (error) {
@@ -280,7 +261,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Clear cache when new course is added
-    cache.clear();
+    apiCache.clearPattern('courses:*');
 
     const { queryOne } = await import("@/lib/mysql-direct");
     const newCourse = await queryOne<Course>(
