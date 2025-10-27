@@ -1,5 +1,6 @@
 import { Sarabun } from "next/font/google";
 import "./globals.css";
+import type { Metadata, Viewport } from "next";
 
 const sarabun = Sarabun({
   weight: ["300", "400", "500", "600", "700"],
@@ -7,9 +8,16 @@ const sarabun = Sarabun({
   variable: "--font-sarabun",
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Thai MOOC - แพลตฟอร์มการเรียนรู้ออนไลน์",
   description: "แพลตฟอร์มการเรียนรู้ออนไลน์สำหรับคนไทย",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({

@@ -97,10 +97,10 @@ export function CourseImportDialog() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = `title,titleEn,description,institutionId,instructorId,imageId,level,durationHours,learningOutcomes,targetAudience,prerequisites,tags,courseUrl,videoUrl,teachingLanguage,hasCertificate,categoryIds,courseTypeIds
-"การเขียนโปรแกรม Python เบื้องต้น","Introduction to Python Programming","เรียนรู้พื้นฐานการเขียนโปรแกรม Python ตั้งแต่เริ่มต้น เหมาะสำหรับผู้ที่ไม่มีพื้นฐานการเขียนโปรแกรม",inst-1759735226501-0,instr-1759751292316,https://thaimooc.ac.th/wp-content/uploads/2024/09/cropped-thaimooc-c-logo.png,beginner,40,"เข้าใจพื้นฐานภาษา Python,สามารถเขียนโปรแกรมเบื้องต้นได้,เข้าใจโครงสร้างข้อมูลพื้นฐาน","นักเรียน นักศึกษา ผู้ที่สนใจเรียนโปรแกรมมิ่ง","ไม่ต้องมีพื้นฐาน","python,programming,beginner,coding","https://example.com/courses/python-intro","https://youtube.com/watch?v=example","Thai",true,"cat-1759732087825,cat-1759732088708","type-1759732232626,type-1759732234195"
-"การพัฒนาเว็บด้วย React","Web Development with React","เรียนรู้การสร้างเว็บแอปพลิเคชันด้วย React.js แบบ step-by-step",inst-1759735226505-1,instr-1759751292316,https://thaimooc.ac.th/wp-content/uploads/2024/09/cropped-thaimooc-c-logo.png,intermediate,60,"สร้าง Web App ด้วย React ได้,เข้าใจ Component-based Architecture,ใช้งาน React Hooks ได้","นักศึกษาสายไอที นักพัฒนาเว็บ","พื้นฐาน HTML CSS JavaScript","react,web,javascript,frontend","https://example.com/courses/react","https://youtube.com/watch?v=example2","Thai",true,cat-1759732087825,type-1759732234195
-"Data Science ด้วย Python","Data Science with Python","เรียนรู้การวิเคราะห์ข้อมูลและ Machine Learning ด้วย Python",inst-1759735226507-2,instr-1759751292316,https://thaimooc.ac.th/wp-content/uploads/2024/09/cropped-thaimooc-c-logo.png,advanced,80,"วิเคราะห์ข้อมูลด้วย Pandas,สร้างโมเดล Machine Learning,Visualize ข้อมูลด้วย Matplotlib","นักวิเคราะห์ข้อมูล Data Scientist ผู้สนใจ AI","พื้นฐาน Python และ คณิตศาสตร์","python,datascience,ai,machinelearning","","","English",false,cat-1759732087825,type-1759732232626`;
+    const csvContent = `title,titleEn,description,categoryIds,learningOutcomes,targetAudience,prerequisites,institutionId,instructorId,level,durationHours,teachingLanguage,hasCertificate,imageId,bannerImageId,videoUrl,courseUrl,tags,courseTypeIds
+"การเขียนโปรแกรม Python เบื้องต้น","Introduction to Python Programming","เรียนรู้พื้นฐานการเขียนโปรแกรม Python ตั้งแต่เริ่มต้น เหมาะสำหรับผู้ที่ไม่มีพื้นฐานการเขียนโปรแกรม","04,02","เข้าใจพื้นฐานภาษา Python,สามารถเขียนโปรแกรมเบื้องต้นได้,เข้าใจโครงสร้างข้อมูลพื้นฐาน","นักเรียน นักศึกษา ผู้ที่สนใจเรียนโปรแกรมมิ่ง","ไม่ต้องมีพื้นฐาน",inst-1759735226501-0,instr-1759751292316,beginner,40,Thai,true,https://thaimooc.ac.th/wp-content/uploads/2024/09/cropped-thaimooc-c-logo.png,,"https://youtube.com/watch?v=example","https://example.com/courses/python-intro","python,programming,beginner,coding","type-1759732232626,type-1759732234195"
+"การพัฒนาเว็บด้วย React","Web Development with React","เรียนรู้การสร้างเว็บแอปพลิเคชันด้วย React.js แบบ step-by-step","04","สร้าง Web App ด้วย React ได้,เข้าใจ Component-based Architecture,ใช้งาน React Hooks ได้","นักศึกษาสายไอที นักพัฒนาเว็บ","พื้นฐาน HTML CSS JavaScript",inst-1759735226505-1,instr-1759751292316,intermediate,60,Thai,true,https://thaimooc.ac.th/wp-content/uploads/2024/09/cropped-thaimooc-c-logo.png,,"https://youtube.com/watch?v=example2","https://example.com/courses/react","react,web,javascript,frontend",type-1759732234195
+"Data Science ด้วย Python","Data Science with Python","เรียนรู้การวิเคราะห์ข้อมูลและ Machine Learning ด้วย Python","04,02","วิเคราะห์ข้อมูลด้วย Pandas,สร้างโมเดล Machine Learning,Visualize ข้อมูลด้วย Matplotlib","นักวิเคราะห์ข้อมูล Data Scientist ผู้สนใจ AI","พื้นฐาน Python และ คณิตศาสตร์",inst-1759735226507-2,instr-1759751292316,advanced,80,English,false,https://thaimooc.ac.th/wp-content/uploads/2024/09/cropped-thaimooc-c-logo.png,,,"","python,datascience,ai,machinelearning",type-1759732232626`;
 
     // Add BOM for UTF-8 to ensure Thai characters display correctly in Excel
     const BOM = "\uFEFF";
@@ -208,14 +208,27 @@ export function CourseImportDialog() {
           <div className="bg-muted p-4 rounded-md">
             <h4 className="text-sm font-semibold mb-2">คำแนะนำ:</h4>
             <ul className="text-sm space-y-1 text-muted-foreground list-disc list-inside">
-              <li>ไฟล์ CSV ต้องมี header ตรงกับตัวอย่าง</li>
+              <li>ไฟล์ CSV ต้องมี header ตรงกับตัวอย่าง (19 คอลัมน์)</li>
               <li>
                 <strong>ฟิลด์ที่จำเป็น:</strong> title, titleEn, description เท่านั้น
               </li>
               <li>ฟิลด์อื่นๆ สามารถเว้นว่างได้ทั้งหมด</li>
-              <li>categoryIds และ courseTypeIds แยกด้วยเครื่องหมายจุลภาค</li>
-              <li>hasCertificate ใช้ค่า true หรือ false</li>
-              <li>learningOutcomes สามารถเป็น JSON array หรือแยกด้วยจุลภาค</li>
+              <li>
+                <strong>categoryIds</strong> และ <strong>courseTypeIds</strong> แยกด้วยเครื่องหมายจุลภาค (เช่น cat-123,cat-456)
+              </li>
+              <li>
+                <strong>hasCertificate</strong> ใช้ค่า true หรือ false
+              </li>
+              <li>
+                <strong>institutionId</strong> และ <strong>instructorId</strong> ต้องเป็น ID ที่มีอยู่ในระบบ
+              </li>
+              <li>
+                <strong>level</strong> ใช้ค่า: beginner, intermediate, advanced
+              </li>
+              <li>learningOutcomes, targetAudience แยกข้อความด้วยจุลภาค</li>
+              <li>
+                <strong>💡 Tip:</strong> ใช้ Export CSV เพื่อดูตัวอย่างข้อมูลที่ถูกต้อง
+              </li>
             </ul>
           </div>
         </div>
