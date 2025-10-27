@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, execute } from "@/lib/mysql-direct";
+import { apiCache } from "@/lib/api-cache";
+
+const CACHE_KEY = 'news:all';
 
 export async function GET() {
   try {
+    // Check cache first
+    const cachedData = apiCache.get(CACHE_KEY);
+    if (cachedData) {
+      return NextResponse.json(cachedData);
+    }
+
     const news = await query(
       'SELECT * FROM news ORDER BY createdAt DESC'
     );
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: news,
       count: news.length,
-    });
+    };
+
+    // Cache for 2 minutes (news updates moderately often)
+    apiCache.set(CACHE_KEY, response, 2 * 60 * 1000);
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
       {
@@ -49,6 +63,9 @@ export async function POST(request: NextRequest) {
       'SELECT * FROM news WHERE id = ?',
       [id]
     );
+
+    // Clear cache when new news is added
+    apiCache.delete(CACHE_KEY);
 
     return NextResponse.json(
       {

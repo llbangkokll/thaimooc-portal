@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, execute } from "@/lib/mysql-direct";
+import { apiCache } from "@/lib/api-cache";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const institutionId = searchParams.get("institutionId");
+
+    // Cache key based on filter
+    const cacheKey = `instructors:${institutionId || 'all'}`;
+
+    // Check cache first
+    const cachedData = apiCache.get(cacheKey);
+    if (cachedData) {
+      return NextResponse.json(cachedData);
+    }
 
     let sql = 'SELECT * FROM instructors';
     const params: any[] = [];
@@ -18,11 +28,16 @@ export async function GET(request: NextRequest) {
 
     const instructors = await query(sql, params);
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: instructors,
       count: instructors.length,
-    });
+    };
+
+    // Cache for 3 minutes
+    apiCache.set(cacheKey, response, 3 * 60 * 1000);
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
       {
@@ -73,6 +88,9 @@ export async function POST(request: NextRequest) {
       'SELECT * FROM instructors WHERE id = ?',
       [id]
     );
+
+    // Clear cache when new instructor is added
+    apiCache.clearPattern('instructors:*');
 
     return NextResponse.json(
       {

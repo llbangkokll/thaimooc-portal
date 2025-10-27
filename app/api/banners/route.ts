@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { query, execute } from "@/lib/mysql-direct";
+import { apiCache } from "@/lib/api-cache";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const activeOnly = searchParams.get("active");
+
+    // Cache key based on filter
+    const cacheKey = `banners:${activeOnly === 'true' ? 'active' : 'all'}`;
+
+    // Check cache first
+    const cachedData = apiCache.get(cacheKey);
+    if (cachedData) {
+      return NextResponse.json(cachedData);
+    }
 
     let sql = 'SELECT * FROM banners';
     const params: any[] = [];
@@ -19,11 +29,16 @@ export async function GET(request: NextRequest) {
 
     const banners = await query(sql, params);
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: banners,
       count: banners.length,
-    });
+    };
+
+    // Cache for 3 minutes (banners change occasionally)
+    apiCache.set(cacheKey, response, 3 * 60 * 1000);
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
       {
@@ -89,6 +104,9 @@ export async function POST(request: NextRequest) {
       'SELECT * FROM banners WHERE id = ?',
       [bannerId]
     );
+
+    // Clear cache when new banner is added
+    apiCache.clearPattern('banners:*');
 
     // Revalidate the cache for banner pages
     revalidatePath("/admin/banners");

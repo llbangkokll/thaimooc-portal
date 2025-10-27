@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne, execute } from "@/lib/mysql-direct";
+import { apiCache } from "@/lib/api-cache";
+
+const CACHE_KEY = 'institutions:all';
 
 export async function GET() {
   try {
+    // Check cache first
+    const cachedData = apiCache.get(CACHE_KEY);
+    if (cachedData) {
+      return NextResponse.json(cachedData);
+    }
+
     const institutions = await query(
       'SELECT * FROM institutions ORDER BY createdAt DESC'
     );
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: institutions,
       count: institutions.length,
-    });
+    };
+
+    // Cache for 5 minutes (institutions don't change often)
+    apiCache.set(CACHE_KEY, response, 5 * 60 * 1000);
+
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
       {
@@ -72,6 +86,9 @@ export async function POST(request: NextRequest) {
       'SELECT * FROM institutions WHERE id = ?',
       [id]
     );
+
+    // Clear cache when new institution is added
+    apiCache.delete(CACHE_KEY);
 
     return NextResponse.json(
       {
