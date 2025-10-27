@@ -2,23 +2,16 @@ import { UserForm } from "@/components/admin/user-form";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { prisma } from "@/lib/prisma";
+import { queryOne } from "@/lib/mysql-direct";
 import { notFound, redirect } from "next/navigation";
 import { requireSuperAdmin } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 async function getUser(id: string) {
-  const user = await prisma.admin_users.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      username: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-    }
-  });
+  const user = await queryOne<any>(
+    'SELECT id, username, name, email, role, isActive FROM admin_users WHERE id = ?',
+    [id]
+  );
 
   if (!user) {
     notFound();

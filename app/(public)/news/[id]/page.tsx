@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/lib/language-context";
 import { Button } from "@/components/ui/button";
+import { SocialShare } from "@/components/ui/social-share";
 import type { News } from "@/lib/types";
 import { ArrowLeft, Calendar } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
@@ -103,6 +104,15 @@ export default function NewsDetailPage() {
               <div
                 dangerouslySetInnerHTML={{ __html: news.content }}
                 className="whitespace-pre-wrap"
+              />
+            </div>
+
+            {/* Social Share Section */}
+            <div className="mt-8 pt-8 border-t">
+              <SocialShare
+                url={`/news/${news.id}`}
+                title={news.title}
+                description={news.content.substring(0, 150)}
               />
             </div>
           </div>

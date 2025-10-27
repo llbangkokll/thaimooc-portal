@@ -59,7 +59,21 @@ export function BannerDisplay({ banners, language }: BannerDisplayProps) {
             {isSplit ? (
               // Split Layout: Text left, Image right (รูปภาพชิดขอบบน ล่าง ขวา)
               <div className="relative h-full flex items-stretch">
-                <div className="container mx-auto grid md:grid-cols-2 gap-0 w-full">
+                {/* Background Image Layer (if exists) */}
+                {banner.backgroundImageId && (
+                  <div className="absolute inset-0">
+                    <Image
+                      src={getImageUrl(banner.backgroundImageId)}
+                      alt="Background"
+                      fill
+                      className="object-cover"
+                      priority={index === 0}
+                    />
+                    <div className="absolute inset-0 bg-black/30" />
+                  </div>
+                )}
+
+                <div className="container mx-auto grid md:grid-cols-2 gap-0 w-full relative z-10">
                   {/* Left: Content */}
                   <div className="flex items-center px-4">
                     <div>

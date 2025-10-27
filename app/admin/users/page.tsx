@@ -3,26 +3,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { UsersList } from "@/components/admin/users-list";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/mysql-direct";
 import { requireSuperAdmin } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 async function getUsers() {
-  const users = await prisma.admin_users.findMany({
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      username: true,
-      name: true,
-      email: true,
-      role: true,
-      isActive: true,
-      lastLogin: true,
-      createdAt: true,
-      updatedAt: true,
-    }
-  });
+  const users = await query<any>(
+    'SELECT id, username, name, email, role, isActive, lastLogin, createdAt, updatedAt FROM admin_users ORDER BY createdAt DESC'
+  );
 
   return users;
 }

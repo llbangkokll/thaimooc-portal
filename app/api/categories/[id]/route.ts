@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, execute } from "@/lib/mysql-direct";
 
 export async function GET(
   request: NextRequest,
@@ -7,9 +7,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const category = await prisma.categories.findUnique({
-      where: { id },
-    });
+    const category = await queryOne(
+      'SELECT * FROM categories WHERE id = ?',
+      [id]
+    );
 
     if (!category) {
       return NextResponse.json(
@@ -44,21 +45,33 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const updatedCategory = await prisma.categories.update({
-      where: { id },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(body.nameEn && { nameEn: body.nameEn }),
-        ...(body.icon && { icon: body.icon }),
-      },
-    });
+    const updates: string[] = [];
+    const values: any[] = [];
 
-    return NextResponse.json({
-      success: true,
-      data: updatedCategory,
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if (body.name) {
+      updates.push('name = ?');
+      values.push(body.name);
+    }
+    if (body.nameEn) {
+      updates.push('nameEn = ?');
+      values.push(body.nameEn);
+    }
+    if (body.icon) {
+      updates.push('icon = ?');
+      values.push(body.icon);
+    }
+
+    updates.push('updatedAt = ?');
+    values.push(new Date());
+
+    values.push(id);
+
+    const result = await execute(
+      `UPDATE categories SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -67,6 +80,17 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const updatedCategory = await queryOne(
+      'SELECT * FROM categories WHERE id = ?',
+      [id]
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: updatedCategory,
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,
@@ -85,30 +109,24 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if category has any courses
-    const coursesCount = await prisma.course_categories.count({
-      where: { categoryId: id },
-    });
+    const coursesCount = await queryOne<{ count: number }>(
+      'SELECT COUNT(*) as count FROM course_categories WHERE categoryId = ?',
+      [id]
+    );
 
-    if (coursesCount > 0) {
+    if (coursesCount && coursesCount.count > 0) {
       return NextResponse.json(
         {
           success: false,
-          error: `ไม่สามารถลบหมวดหมู่ได้ เนื่องจากมีรายวิชาที่ใช้หมวดหมู่นี้อยู่ ${coursesCount} รายวิชา`,
+          error: `ไม่สามารถลบหมวดหมู่ได้ เนื่องจากมีรายวิชาที่ใช้หมวดหมู่นี้อยู่ ${coursesCount.count} รายวิชา`,
         },
         { status: 400 }
       );
     }
 
-    await prisma.categories.delete({
-      where: { id },
-    });
+    const result = await execute('DELETE FROM categories WHERE id = ?', [id]);
 
-    return NextResponse.json({
-      success: true,
-      message: "Category deleted successfully",
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -117,6 +135,12 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    return NextResponse.json({
+      success: true,
+      message: "Category deleted successfully",
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,

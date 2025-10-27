@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, execute } from "@/lib/mysql-direct";
 
 export async function GET(
   request: NextRequest,
@@ -7,9 +7,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const institution = await prisma.institutions.findUnique({
-      where: { id },
-    });
+    const institution = await queryOne(
+      'SELECT * FROM institutions WHERE id = ?',
+      [id]
+    );
 
     if (!institution) {
       return NextResponse.json(
@@ -44,24 +45,45 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const updatedInstitution = await prisma.institutions.update({
-      where: { id },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(body.nameEn && { nameEn: body.nameEn }),
-        ...(body.abbreviation && { abbreviation: body.abbreviation }),
-        ...(body.logoUrl && { logoUrl: body.logoUrl }),
-        ...(body.website !== undefined && { website: body.website }),
-        ...(body.description !== undefined && { description: body.description }),
-      },
-    });
+    const updates: string[] = [];
+    const values: any[] = [];
 
-    return NextResponse.json({
-      success: true,
-      data: updatedInstitution,
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if (body.name) {
+      updates.push('name = ?');
+      values.push(body.name);
+    }
+    if (body.nameEn) {
+      updates.push('nameEn = ?');
+      values.push(body.nameEn);
+    }
+    if (body.abbreviation) {
+      updates.push('abbreviation = ?');
+      values.push(body.abbreviation);
+    }
+    if (body.logoUrl) {
+      updates.push('logoUrl = ?');
+      values.push(body.logoUrl);
+    }
+    if (body.website !== undefined) {
+      updates.push('website = ?');
+      values.push(body.website);
+    }
+    if (body.description !== undefined) {
+      updates.push('description = ?');
+      values.push(body.description);
+    }
+
+    updates.push('updatedAt = ?');
+    values.push(new Date());
+
+    values.push(id);
+
+    const result = await execute(
+      `UPDATE institutions SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -70,6 +92,17 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const updatedInstitution = await queryOne(
+      'SELECT * FROM institutions WHERE id = ?',
+      [id]
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: updatedInstitution,
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,
@@ -88,45 +121,40 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if institution has any courses
-    const coursesCount = await prisma.courses.count({
-      where: { institutionId: id },
-    });
+    const coursesCount = await queryOne<{ count: number }>(
+      'SELECT COUNT(*) as count FROM courses WHERE institutionId = ?',
+      [id]
+    );
 
-    if (coursesCount > 0) {
+    if (coursesCount && coursesCount.count > 0) {
       return NextResponse.json(
         {
           success: false,
-          error: `ไม่สามารถลบสถาบันได้ เนื่องจากมีรายวิชาที่สังกัดสถาบันนี้อยู่ ${coursesCount} รายวิชา`,
+          error: `ไม่สามารถลบสถาบันได้ เนื่องจากมีรายวิชาที่สังกัดสถาบันนี้อยู่ ${coursesCount.count} รายวิชา`,
         },
         { status: 400 }
       );
     }
 
     // Check if institution has any instructors
-    const instructorsCount = await prisma.instructors.count({
-      where: { institutionId: id },
-    });
+    const instructorsCount = await queryOne<{ count: number }>(
+      'SELECT COUNT(*) as count FROM instructors WHERE institutionId = ?',
+      [id]
+    );
 
-    if (instructorsCount > 0) {
+    if (instructorsCount && instructorsCount.count > 0) {
       return NextResponse.json(
         {
           success: false,
-          error: `ไม่สามารถลบสถาบันได้ เนื่องจากมีอาจารย์ที่สังกัดสถาบันนี้อยู่ ${instructorsCount} คน`,
+          error: `ไม่สามารถลบสถาบันได้ เนื่องจากมีอาจารย์ที่สังกัดสถาบันนี้อยู่ ${instructorsCount.count} คน`,
         },
         { status: 400 }
       );
     }
 
-    await prisma.institutions.delete({
-      where: { id },
-    });
+    const result = await execute('DELETE FROM institutions WHERE id = ?', [id]);
 
-    return NextResponse.json({
-      success: true,
-      message: "Institution deleted successfully",
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -135,6 +163,12 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    return NextResponse.json({
+      success: true,
+      message: "Institution deleted successfully",
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,

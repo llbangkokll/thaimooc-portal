@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, execute } from "@/lib/mysql-direct";
 
 interface CSVInstitutionData {
   name: string;
@@ -43,9 +43,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Check for duplicate abbreviation
-        const existing = await prisma.institutions.findFirst({
-          where: { abbreviation: institution.abbreviation },
-        });
+        const existing = await queryOne(
+          'SELECT id FROM institutions WHERE abbreviation = ?',
+          [institution.abbreviation]
+        );
         if (existing) {
           results.failed++;
           results.errors.push(`Row ${i + 1}: Institution with abbreviation "${institution.abbreviation}" already exists`);
@@ -54,9 +55,9 @@ export async function POST(request: NextRequest) {
 
         // Generate ID: YYNNN format (e.g., 25001)
         const year = new Date().getFullYear().toString().slice(-2);
-        const lastInstitution = await prisma.institutions.findFirst({
-          orderBy: { id: 'desc' },
-        });
+        const lastInstitution = await queryOne<{ id: string }>(
+          'SELECT id FROM institutions ORDER BY id DESC LIMIT 1'
+        );
 
         let sequence = 1;
         if (lastInstitution && lastInstitution.id.match(/^\d{5}$/)) {
@@ -67,21 +68,24 @@ export async function POST(request: NextRequest) {
         }
 
         const id = `${year}${sequence.toString().padStart(3, '0')}`;
+        const now = new Date();
 
         // Create institution
-        await prisma.institutions.create({
-          data: {
+        await execute(
+          `INSERT INTO institutions (id, name, nameEn, abbreviation, logoUrl, website, description, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
             id,
-            name: institution.name,
-            nameEn: institution.nameEn,
-            abbreviation: institution.abbreviation,
-            logoUrl: institution.logoUrl,
-            website: institution.website || null,
-            description: institution.description || null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
+            institution.name,
+            institution.nameEn,
+            institution.abbreviation,
+            institution.logoUrl,
+            institution.website || null,
+            institution.description || null,
+            now,
+            now
+          ]
+        );
 
         results.success++;
       } catch (error: any) {

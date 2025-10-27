@@ -84,15 +84,15 @@ export function Footer() {
             <h3 className="font-semibold mb-4 text-[1.2rem]">{t("ติดต่อเรา", "Contact Us")}</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
+                <Mail className="flex-shrink-0" style={{ width: '20px', height: '20px', minWidth: '20px', minHeight: '20px' }} />
                 <span>{settings?.contactEmail || "contact@thaimooc.ac.th"}</span>
               </li>
               <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
+                <Phone className="flex-shrink-0" style={{ width: '20px', height: '20px', minWidth: '20px', minHeight: '20px' }} />
                 <span>{settings?.contactPhone || "02-123-4567"}</span>
               </li>
               <li className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
+                <MapPin className="flex-shrink-0" style={{ width: '20px', height: '20px', minWidth: '20px', minHeight: '20px' }} />
                 <span>{settings?.address || t("กรุงเทพมหานคร ประเทศไทย", "Bangkok, Thailand")}</span>
               </li>
             </ul>

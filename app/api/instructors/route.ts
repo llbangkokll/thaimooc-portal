@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, execute } from "@/lib/mysql-direct";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const institutionId = searchParams.get("institutionId");
 
-    const instructors = await prisma.instructors.findMany({
-      where: institutionId ? { institutionId } : undefined,
-      orderBy: { createdAt: 'desc' },
-    });
+    let sql = 'SELECT * FROM instructors';
+    const params: any[] = [];
+
+    if (institutionId) {
+      sql += ' WHERE institutionId = ?';
+      params.push(institutionId);
+    }
+
+    sql += ' ORDER BY createdAt DESC';
+
+    const instructors = await query(sql, params);
 
     return NextResponse.json({
       success: true,
@@ -43,26 +50,34 @@ export async function POST(request: NextRequest) {
 
     // Generate ID
     const id = `instr-${Date.now()}`;
+    const now = new Date();
 
-    const newInstructor = await prisma.instructors.create({
-      data: {
+    await execute(
+      `INSERT INTO instructors (id, name, nameEn, title, institutionId, bio, imageUrl, email, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
         id,
-        name: body.name,
-        nameEn: body.nameEn,
-        title: body.title,
-        institutionId: body.institutionId,
-        bio: body.bio || null,
-        imageUrl: body.imageUrl || null,
-        email: body.email || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+        body.name,
+        body.nameEn,
+        body.title,
+        body.institutionId,
+        body.bio || null,
+        body.imageUrl || null,
+        body.email || null,
+        now,
+        now
+      ]
+    );
+
+    const newInstructor = await query(
+      'SELECT * FROM instructors WHERE id = ?',
+      [id]
+    );
 
     return NextResponse.json(
       {
         success: true,
-        data: newInstructor,
+        data: newInstructor[0],
       },
       { status: 201 }
     );

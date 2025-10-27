@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TiptapEditor } from "@/components/ui/tiptap-editor";
 import type { News } from "@/lib/types";
 
 interface NewsFormProps {
@@ -16,6 +16,7 @@ interface NewsFormProps {
 export function NewsForm({ news }: NewsFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     title: news?.title || "",
     content: news?.content || "",
@@ -79,23 +80,82 @@ export function NewsForm({ news }: NewsFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="content">Content *</Label>
-              <Textarea
-                id="content"
-                value={formData.content}
-                onChange={(e) => handleChange("content", e.target.value)}
-                required
-                rows={10}
+              <TiptapEditor
+                content={formData.content}
+                onChange={(html) => handleChange("content", html)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="imageId">Image ID</Label>
-              <Input
-                id="imageId"
-                value={formData.imageId}
-                onChange={(e) => handleChange("imageId", e.target.value)}
-                placeholder="image-id"
-              />
+              <Label htmlFor="imageId">Image</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="imageId"
+                  value={formData.imageId}
+                  onChange={(e) => handleChange("imageId", e.target.value)}
+                  placeholder="https://example.com/image.jpg or image-id"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploading}
+                  onClick={async () => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        setUploading(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append("file", file);
+
+                          const response = await fetch("/api/upload", {
+                            method: "POST",
+                            body: formData,
+                          });
+
+                          if (!response.ok) {
+                            throw new Error("Upload failed");
+                          }
+
+                          const data = await response.json();
+                          if (data.success && data.url) {
+                            handleChange("imageId", data.url);
+                          } else {
+                            throw new Error(data.error || "Upload failed");
+                          }
+                        } catch (error) {
+                          console.error("Upload error:", error);
+                          alert("Failed to upload file. Please try again.");
+                        } finally {
+                          setUploading(false);
+                        }
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  {uploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+              {formData.imageId && (
+                <div className="mt-2 relative w-full max-w-[550px] mx-auto aspect-video border rounded-lg overflow-hidden bg-gray-50">
+                  <img
+                    src={formData.imageId}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Upload an image or enter an image URL
+              </p>
             </div>
           </CardContent>
         </Card>

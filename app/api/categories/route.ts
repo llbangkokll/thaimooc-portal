@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, execute } from "@/lib/mysql-direct";
 
 export async function GET() {
   try {
-    const categories = await prisma.categories.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const categories = await query(
+      'SELECT * FROM categories ORDER BY createdAt DESC'
+    );
 
     return NextResponse.json({
       success: true,
@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate ID: 2-digit format (01, 02, 03, ...)
-    const lastCategory = await prisma.categories.findFirst({
-      orderBy: { id: 'desc' },
-    });
+    const lastCategory = await queryOne<{ id: string }>(
+      'SELECT id FROM categories ORDER BY id DESC LIMIT 1'
+    );
 
     let sequence = 1;
     if (lastCategory && lastCategory.id.match(/^\d{2}$/)) {
@@ -48,16 +48,17 @@ export async function POST(request: NextRequest) {
     }
 
     const id = sequence.toString().padStart(2, '0');
+    const now = new Date();
 
-    const newCategory = await prisma.categories.create({
-      data: {
-        id,
-        name: body.name,
-        nameEn: body.nameEn,
-        icon: body.icon,
-        updatedAt: new Date(),
-      },
-    });
+    await execute(
+      'INSERT INTO categories (id, name, nameEn, icon, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, body.name, body.nameEn, body.icon, now, now]
+    );
+
+    const newCategory = await queryOne(
+      'SELECT * FROM categories WHERE id = ?',
+      [id]
+    );
 
     return NextResponse.json(
       {

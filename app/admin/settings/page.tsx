@@ -11,7 +11,7 @@ import type { WebAppSettings } from "@/lib/types";
 import Image from "next/image";
 
 export default function AdminSettingsPage() {
-  const [formData, setFormData] = useState<WebAppSettings>({
+  const [formData, setFormData] = useState<Partial<WebAppSettings>>({
     id: "",
     siteName: "",
     siteLogo: "",
@@ -26,8 +26,6 @@ export default function AdminSettingsPage() {
     youtubeUrl: "",
     instagramUrl: "",
     lineUrl: "",
-    createdAt: new Date(),
-    updatedAt: new Date(),
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,8 +58,23 @@ export default function AdminSettingsPage() {
       try {
         const response = await fetch("/api/settings");
         const data = await response.json();
-        setFormData(data);
-        setLogoPreview(data.siteLogo);
+        setFormData({
+          id: data.id || "",
+          siteName: data.siteName || "",
+          siteLogo: data.siteLogo || "",
+          contactEmail: data.contactEmail || "",
+          contactPhone: data.contactPhone || "",
+          address: data.address || "",
+          aboutUs: data.aboutUs || "",
+          aboutUsEn: data.aboutUsEn || "",
+          mapUrl: data.mapUrl || "",
+          facebookUrl: data.facebookUrl || "",
+          twitterUrl: data.twitterUrl || "",
+          youtubeUrl: data.youtubeUrl || "",
+          instagramUrl: data.instagramUrl || "",
+          lineUrl: data.lineUrl || "",
+        });
+        setLogoPreview(data.siteLogo || "");
       } catch (error) {
         console.error("Failed to load settings:", error);
       } finally {
@@ -191,7 +204,7 @@ export default function AdminSettingsPage() {
         <p className="text-muted-foreground">Manage web application settings</p>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>General Settings</CardTitle>
@@ -310,7 +323,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="aboutUs">About Us (Thai)</Label>
               <Textarea
                 id="aboutUs"
-                value={formData.aboutUs || ""}
+                value={formData.aboutUs ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, aboutUs: e.target.value })
                 }
@@ -323,7 +336,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="aboutUsEn">About Us (English)</Label>
               <Textarea
                 id="aboutUsEn"
-                value={formData.aboutUsEn || ""}
+                value={formData.aboutUsEn ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, aboutUsEn: e.target.value })
                 }
@@ -334,25 +347,28 @@ export default function AdminSettingsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="mapUrl">Map URL (Google Maps Embed)</Label>
-              <Input
+              <textarea
                 id="mapUrl"
-                value={formData.mapUrl || ""}
+                value={formData.mapUrl ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, mapUrl: e.target.value })
                 }
-                placeholder="https://www.google.com/maps/embed?pb=..."
+                placeholder='<iframe src="https://www.google.com/maps/embed?pb=..." width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>'
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <p className="text-xs text-muted-foreground">
-                Get embed URL from Google Maps: Share → Embed a map → Copy HTML
-              </p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="font-semibold">วิธีการนำ Google Maps มาใส่:</p>
+                <ol className="list-decimal ml-4 space-y-1">
+                  <li>เปิด Google Maps และค้นหาสถานที่</li>
+                  <li>คลิก "Share" (แชร์)</li>
+                  <li>เลือกแท็บ "Embed a map" (ฝังแผนที่)</li>
+                  <li>คัดลอกโค้ด HTML ทั้งหมด (รวม &lt;iframe&gt;...&lt;/iframe&gt;)</li>
+                  <li>วางโค้ดในช่องนี้</li>
+                </ol>
+              </div>
             </div>
 
-            <div className="flex justify-end">
-              <Button type="submit" disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? "Saving..." : "Save Settings"}
-              </Button>
-            </div>
           </CardContent>
         </Card>
 
@@ -365,7 +381,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="facebookUrl">Facebook URL</Label>
               <Input
                 id="facebookUrl"
-                value={formData.facebookUrl || ""}
+                value={formData.facebookUrl ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, facebookUrl: e.target.value })
                 }
@@ -377,7 +393,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="twitterUrl">Twitter (X) URL</Label>
               <Input
                 id="twitterUrl"
-                value={formData.twitterUrl || ""}
+                value={formData.twitterUrl ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, twitterUrl: e.target.value })
                 }
@@ -389,7 +405,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="youtubeUrl">YouTube URL</Label>
               <Input
                 id="youtubeUrl"
-                value={formData.youtubeUrl || ""}
+                value={formData.youtubeUrl ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, youtubeUrl: e.target.value })
                 }
@@ -401,7 +417,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="instagramUrl">Instagram URL</Label>
               <Input
                 id="instagramUrl"
-                value={formData.instagramUrl || ""}
+                value={formData.instagramUrl ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, instagramUrl: e.target.value })
                 }
@@ -413,7 +429,7 @@ export default function AdminSettingsPage() {
               <Label htmlFor="lineUrl">LINE URL</Label>
               <Input
                 id="lineUrl"
-                value={formData.lineUrl || ""}
+                value={formData.lineUrl ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, lineUrl: e.target.value })
                 }
@@ -421,14 +437,15 @@ export default function AdminSettingsPage() {
               />
             </div>
 
-            <div className="flex justify-end">
-              <Button type="submit" disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? "Saving..." : "Save Settings"}
-              </Button>
-            </div>
           </CardContent>
         </Card>
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={saving}>
+            <Save className="h-4 w-4 mr-2" />
+            {saving ? "Saving..." : "Save All Settings"}
+          </Button>
+        </div>
       </form>
     </div>
   );

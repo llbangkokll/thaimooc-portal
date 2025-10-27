@@ -98,6 +98,7 @@ export interface Banner {
   buttonText?: string | null;
   buttonTextEn?: string | null;
   imageId: string;
+  backgroundImageId?: string | null;
   overlayImageId?: string | null;
   linkUrl?: string | null;
   backgroundColor?: string | null;
@@ -134,6 +135,25 @@ export interface ImagePlaceholder {
   url: string;
   title: string;
   category: "course" | "banner" | "news" | "instructor" | "institution" | "general";
+}
+
+export interface Popup {
+  id: string;
+  title: string;
+  titleEn: string;
+  description?: string | null;
+  descriptionEn?: string | null;
+  imageId: string;
+  linkUrl?: string | null;
+  buttonText?: string | null;
+  buttonTextEn?: string | null;
+  isActive: boolean;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  displayOrder: number;
+  showOnce: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export type Language = "th" | "en";

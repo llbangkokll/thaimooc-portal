@@ -24,6 +24,21 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Webpack config for server-side modules
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Don't resolve 'mysql2' and other Node.js modules on client
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        fs: false,
+        dns: false,
+        crypto: false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { execute } from "@/lib/mysql-direct";
 
 export async function DELETE(
   request: NextRequest,
@@ -11,9 +11,14 @@ export async function DELETE(
     console.log("Delete placeholder request:", id);
 
     // Delete the placeholder from database
-    await prisma.image_placeholders.delete({
-      where: { id },
-    });
+    const result = await execute('DELETE FROM image_placeholders WHERE id = ?', [id]);
+
+    if ((result as any).affectedRows === 0) {
+      return NextResponse.json(
+        { success: false, error: "Placeholder not found" },
+        { status: 404 }
+      );
+    }
 
     console.log("Placeholder deleted successfully:", id);
 
@@ -23,13 +28,6 @@ export async function DELETE(
     });
   } catch (error: any) {
     console.error("Error deleting placeholder:", error);
-
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { success: false, error: "Placeholder not found" },
-        { status: 404 }
-      );
-    }
 
     return NextResponse.json(
       { success: false, error: error.message || "Failed to delete placeholder" },

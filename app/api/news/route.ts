@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, execute } from "@/lib/mysql-direct";
 
 export async function GET() {
   try {
-    const news = await prisma.news.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const news = await query(
+      'SELECT * FROM news ORDER BY createdAt DESC'
+    );
 
     return NextResponse.json({
       success: true,
@@ -37,21 +37,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const newNews = await prisma.news.create({
-      data: {
-        id: `news-${Date.now()}`,
-        title: body.title,
-        content: body.content,
-        imageId: body.imageId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    const id = `news-${Date.now()}`;
+    const now = new Date();
+
+    await execute(
+      'INSERT INTO news (id, title, content, imageId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, body.title, body.content, body.imageId, now, now]
+    );
+
+    const newNews = await query(
+      'SELECT * FROM news WHERE id = ?',
+      [id]
+    );
 
     return NextResponse.json(
       {
         success: true,
-        data: newNews,
+        data: newNews[0],
       },
       { status: 201 }
     );

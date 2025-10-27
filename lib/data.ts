@@ -1,394 +1,467 @@
-import { prisma } from "./prisma";
+import { query, queryOne, execute } from "./mysql-direct";
 import * as types from "./types";
 
 // Categories
 export async function getCategories(): Promise<types.Category[]> {
-  return prisma.categories.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+  return await query<types.Category>(
+    'SELECT * FROM categories ORDER BY createdAt DESC'
+  );
 }
 
 // Course Types
 export async function getCourseTypes(): Promise<types.CourseType[]> {
-  return prisma.course_types.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+  return await query<types.CourseType>(
+    'SELECT * FROM course_types ORDER BY createdAt DESC'
+  );
 }
 
 export async function getCategoryById(id: string): Promise<types.Category | null> {
-  return prisma.categories.findUnique({
-    where: { id },
-  });
+  return await queryOne<types.Category>(
+    'SELECT * FROM categories WHERE id = ?',
+    [id]
+  );
 }
 
 export async function createCategory(data: Omit<types.Category, "id" | "createdAt" | "updatedAt">): Promise<types.Category> {
-  return prisma.categories.create({
-    data: {
-      id: `cat-${Date.now()}`,
-      name: data.name,
-      nameEn: data.nameEn,
-      icon: data.icon,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const id = `cat-${Date.now()}`;
+  await execute(
+    'INSERT INTO categories (id, name, nameEn, icon, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())',
+    [id, data.name, data.nameEn, data.icon]
+  );
+  return (await getCategoryById(id))!;
 }
 
 export async function updateCategory(id: string, data: Partial<types.Category>): Promise<types.Category | null> {
-  try {
-    return await prisma.categories.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.nameEn && { nameEn: data.nameEn }),
-        ...(data.icon && { icon: data.icon }),
-      },
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') return null;
-    throw error;
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.name) {
+    updates.push('name = ?');
+    values.push(data.name);
   }
+  if (data.nameEn) {
+    updates.push('nameEn = ?');
+    values.push(data.nameEn);
+  }
+  if (data.icon) {
+    updates.push('icon = ?');
+    values.push(data.icon);
+  }
+
+  if (updates.length === 0) return await getCategoryById(id);
+
+  updates.push('updatedAt = NOW()');
+  values.push(id);
+
+  const result = await execute(
+    `UPDATE categories SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
+
+  return result.affectedRows > 0 ? await getCategoryById(id) : null;
 }
 
 export async function deleteCategory(id: string): Promise<boolean> {
-  try {
-    await prisma.categories.delete({ where: { id } });
-    return true;
-  } catch (error: any) {
-    if (error.code === 'P2025') return false;
-    throw error;
-  }
+  const result = await execute('DELETE FROM categories WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
 // Institutions
 export async function getInstitutions(): Promise<types.Institution[]> {
-  return prisma.institutions.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+  return await query<types.Institution>(
+    'SELECT * FROM institutions ORDER BY createdAt DESC'
+  );
 }
 
 export async function getInstitutionById(id: string): Promise<types.Institution | null> {
-  return prisma.institutions.findUnique({
-    where: { id },
-  });
+  return await queryOne<types.Institution>(
+    'SELECT * FROM institutions WHERE id = ?',
+    [id]
+  );
 }
 
 export async function createInstitution(data: Omit<types.Institution, "id" | "createdAt" | "updatedAt">): Promise<types.Institution> {
-  return prisma.institutions.create({
-    data: {
-      id: `inst-${Date.now()}`,
-      name: data.name,
-      nameEn: data.nameEn,
-      abbreviation: data.abbreviation,
-      logoUrl: data.logoUrl,
-      website: data.website || null,
-      description: data.description || null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const id = `inst-${Date.now()}`;
+  await execute(
+    'INSERT INTO institutions (id, name, nameEn, abbreviation, logoUrl, website, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+    [id, data.name, data.nameEn, data.abbreviation, data.logoUrl, data.website || null, data.description || null]
+  );
+  return (await getInstitutionById(id))!;
 }
 
 export async function updateInstitution(id: string, data: Partial<types.Institution>): Promise<types.Institution | null> {
-  try {
-    return await prisma.institutions.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.nameEn && { nameEn: data.nameEn }),
-        ...(data.abbreviation && { abbreviation: data.abbreviation }),
-        ...(data.logoUrl && { logoUrl: data.logoUrl }),
-        ...(data.website !== undefined && { website: data.website }),
-        ...(data.description !== undefined && { description: data.description }),
-      },
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') return null;
-    throw error;
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.name) {
+    updates.push('name = ?');
+    values.push(data.name);
   }
+  if (data.nameEn) {
+    updates.push('nameEn = ?');
+    values.push(data.nameEn);
+  }
+  if (data.abbreviation) {
+    updates.push('abbreviation = ?');
+    values.push(data.abbreviation);
+  }
+  if (data.logoUrl) {
+    updates.push('logoUrl = ?');
+    values.push(data.logoUrl);
+  }
+  if (data.website !== undefined) {
+    updates.push('website = ?');
+    values.push(data.website);
+  }
+  if (data.description !== undefined) {
+    updates.push('description = ?');
+    values.push(data.description);
+  }
+
+  if (updates.length === 0) return await getInstitutionById(id);
+
+  updates.push('updatedAt = NOW()');
+  values.push(id);
+
+  const result = await execute(
+    `UPDATE institutions SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
+
+  return result.affectedRows > 0 ? await getInstitutionById(id) : null;
 }
 
 export async function deleteInstitution(id: string): Promise<boolean> {
-  try {
-    await prisma.institutions.delete({ where: { id } });
-    return true;
-  } catch (error: any) {
-    if (error.code === 'P2025') return false;
-    throw error;
-  }
+  const result = await execute('DELETE FROM institutions WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
 // Instructors
 export async function getInstructors(): Promise<types.Instructor[]> {
-  return prisma.instructors.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+  return await query<types.Instructor>(
+    'SELECT * FROM instructors ORDER BY createdAt DESC'
+  );
 }
 
 export async function getInstructorById(id: string): Promise<types.Instructor | null> {
-  return prisma.instructors.findUnique({
-    where: { id },
-  });
+  return await queryOne<types.Instructor>(
+    'SELECT * FROM instructors WHERE id = ?',
+    [id]
+  );
 }
 
 export async function createInstructor(data: Omit<types.Instructor, "id" | "createdAt" | "updatedAt">): Promise<types.Instructor> {
-  return prisma.instructors.create({
-    data: {
-      id: `instr-${Date.now()}`,
-      name: data.name,
-      nameEn: data.nameEn,
-      title: data.title,
-      institutionId: data.institutionId,
-      bio: data.bio || null,
-      imageUrl: data.imageUrl || null,
-      email: data.email || null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const id = `instr-${Date.now()}`;
+  await execute(
+    'INSERT INTO instructors (id, name, nameEn, title, institutionId, bio, imageUrl, email, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+    [id, data.name, data.nameEn, data.title, data.institutionId, data.bio || null, data.imageUrl || null, data.email || null]
+  );
+  return (await getInstructorById(id))!;
 }
 
 export async function updateInstructor(id: string, data: Partial<types.Instructor>): Promise<types.Instructor | null> {
-  try {
-    return await prisma.instructors.update({
-      where: { id },
-      data: {
-        ...(data.name && { name: data.name }),
-        ...(data.nameEn && { nameEn: data.nameEn }),
-        ...(data.title && { title: data.title }),
-        ...(data.institutionId && { institutionId: data.institutionId }),
-        ...(data.bio !== undefined && { bio: data.bio }),
-        ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
-        ...(data.email !== undefined && { email: data.email }),
-      },
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') return null;
-    throw error;
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.name) {
+    updates.push('name = ?');
+    values.push(data.name);
   }
+  if (data.nameEn) {
+    updates.push('nameEn = ?');
+    values.push(data.nameEn);
+  }
+  if (data.title) {
+    updates.push('title = ?');
+    values.push(data.title);
+  }
+  if (data.institutionId) {
+    updates.push('institutionId = ?');
+    values.push(data.institutionId);
+  }
+  if (data.bio !== undefined) {
+    updates.push('bio = ?');
+    values.push(data.bio);
+  }
+  if (data.imageUrl !== undefined) {
+    updates.push('imageUrl = ?');
+    values.push(data.imageUrl);
+  }
+  if (data.email !== undefined) {
+    updates.push('email = ?');
+    values.push(data.email);
+  }
+
+  if (updates.length === 0) return await getInstructorById(id);
+
+  updates.push('updatedAt = NOW()');
+  values.push(id);
+
+  const result = await execute(
+    `UPDATE instructors SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
+
+  return result.affectedRows > 0 ? await getInstructorById(id) : null;
 }
 
 export async function deleteInstructor(id: string): Promise<boolean> {
-  try {
-    await prisma.instructors.delete({ where: { id } });
-    return true;
-  } catch (error: any) {
-    if (error.code === 'P2025') return false;
-    throw error;
-  }
+  const result = await execute('DELETE FROM instructors WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
 // Courses
 export async function getCourses(): Promise<types.Course[]> {
-  return prisma.courses.findMany({
-    include: {
-      course_categories: {
-        select: {
-          categoryId: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const courses = await query<any>(
+    `SELECT c.*,
+     GROUP_CONCAT(DISTINCT cc.categoryId) as categoryIds
+     FROM courses c
+     LEFT JOIN course_categories cc ON c.id = cc.courseId
+     GROUP BY c.id
+     ORDER BY c.createdAt DESC`
+  );
+
+  return courses.map(course => ({
+    ...course,
+    categoryIds: course.categoryIds ? course.categoryIds.split(',') : [],
+  }));
 }
 
 export async function getCourseById(id: string): Promise<types.Course | null> {
-  const course = await prisma.courses.findUnique({
-    where: { id },
-    include: {
-      course_categories: {
-        select: {
-          categoryId: true,
-        },
-      },
-      course_course_types: {
-        select: {
-          courseTypeId: true,
-        },
-      },
-    },
-  });
+  const course = await queryOne<any>(
+    `SELECT c.*,
+     GROUP_CONCAT(DISTINCT cc.categoryId) as categoryIds,
+     GROUP_CONCAT(DISTINCT cct.courseTypeId) as courseTypeIds
+     FROM courses c
+     LEFT JOIN course_categories cc ON c.id = cc.courseId
+     LEFT JOIN course_course_types cct ON c.id = cct.courseId
+     WHERE c.id = ?
+     GROUP BY c.id`,
+    [id]
+  );
 
   if (!course) return null;
 
-  // Transform to match Course type with categoryIds and courseTypeIds
   return {
     ...course,
-    categoryIds: course.course_categories.map((cc: any) => cc.categoryId),
-    courseTypeIds: course.course_course_types.map((cct: any) => cct.courseTypeId),
+    categoryIds: course.categoryIds ? course.categoryIds.split(',') : [],
+    courseTypeIds: course.courseTypeIds ? course.courseTypeIds.split(',') : [],
   } as types.Course;
 }
 
 export async function createCourse(data: Omit<types.Course, "id" | "createdAt" | "updatedAt">): Promise<types.Course> {
-  return prisma.courses.create({
-    data: {
-      id: `course-${Date.now()}`,
-      title: data.title,
-      titleEn: data.titleEn,
-      description: data.description,
-      institutionId: data.institutionId || null,
-      instructorId: data.instructorId || null,
-      imageId: data.imageId || null,
-      level: data.level || null,
-      durationHours: data.durationHours || null,
-      hasCertificate: data.hasCertificate || false,
-      enrollCount: data.enrollCount || 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const id = `course-${Date.now()}`;
+  await execute(
+    'INSERT INTO courses (id, title, titleEn, description, institutionId, instructorId, imageId, level, durationHours, hasCertificate, enrollCount, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+    [id, data.title, data.titleEn, data.description, data.institutionId || null, data.instructorId || null, data.imageId || null, data.level || null, data.durationHours || null, data.hasCertificate || false, data.enrollCount || 0]
+  );
+  return (await getCourseById(id))!;
 }
 
 export async function updateCourse(id: string, data: Partial<types.Course>): Promise<types.Course | null> {
-  try {
-    return await prisma.courses.update({
-      where: { id },
-      data: {
-        ...(data.title && { title: data.title }),
-        ...(data.titleEn && { titleEn: data.titleEn }),
-        ...(data.description && { description: data.description }),
-        ...(data.institutionId !== undefined && { institutionId: data.institutionId }),
-        ...(data.instructorId !== undefined && { instructorId: data.instructorId }),
-        ...(data.imageId !== undefined && { imageId: data.imageId }),
-        ...(data.level !== undefined && { level: data.level }),
-        ...(data.durationHours !== undefined && { durationHours: data.durationHours }),
-        ...(data.hasCertificate !== undefined && { hasCertificate: data.hasCertificate }),
-        ...(data.enrollCount !== undefined && { enrollCount: data.enrollCount }),
-      },
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') return null;
-    throw error;
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.title) {
+    updates.push('title = ?');
+    values.push(data.title);
   }
+  if (data.titleEn) {
+    updates.push('titleEn = ?');
+    values.push(data.titleEn);
+  }
+  if (data.description) {
+    updates.push('description = ?');
+    values.push(data.description);
+  }
+  if (data.institutionId !== undefined) {
+    updates.push('institutionId = ?');
+    values.push(data.institutionId);
+  }
+  if (data.instructorId !== undefined) {
+    updates.push('instructorId = ?');
+    values.push(data.instructorId);
+  }
+  if (data.imageId !== undefined) {
+    updates.push('imageId = ?');
+    values.push(data.imageId);
+  }
+  if (data.level !== undefined) {
+    updates.push('level = ?');
+    values.push(data.level);
+  }
+  if (data.durationHours !== undefined) {
+    updates.push('durationHours = ?');
+    values.push(data.durationHours);
+  }
+  if (data.hasCertificate !== undefined) {
+    updates.push('hasCertificate = ?');
+    values.push(data.hasCertificate);
+  }
+  if (data.enrollCount !== undefined) {
+    updates.push('enrollCount = ?');
+    values.push(data.enrollCount);
+  }
+
+  if (updates.length === 0) return await getCourseById(id);
+
+  updates.push('updatedAt = NOW()');
+  values.push(id);
+
+  const result = await execute(
+    `UPDATE courses SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
+
+  return result.affectedRows > 0 ? await getCourseById(id) : null;
 }
 
 export async function deleteCourse(id: string): Promise<boolean> {
-  try {
-    await prisma.courses.delete({ where: { id } });
-    return true;
-  } catch (error: any) {
-    if (error.code === 'P2025') return false;
-    throw error;
-  }
+  const result = await execute('DELETE FROM courses WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
 // News
 export async function getNews(): Promise<types.News[]> {
-  return prisma.news.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
+  return await query<types.News>(
+    'SELECT * FROM news ORDER BY createdAt DESC'
+  );
 }
 
 export async function getNewsById(id: string): Promise<types.News | null> {
-  return prisma.news.findUnique({
-    where: { id },
-  });
+  return await queryOne<types.News>(
+    'SELECT * FROM news WHERE id = ?',
+    [id]
+  );
 }
 
 export async function createNews(data: Omit<types.News, "id" | "createdAt" | "updatedAt">): Promise<types.News> {
-  return prisma.news.create({
-    data: {
-      id: `news-${Date.now()}`,
-      title: data.title,
-      content: data.content,
-      imageId: data.imageId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const id = `news-${Date.now()}`;
+  await execute(
+    'INSERT INTO news (id, title, content, imageId, createdAt, updatedAt) VALUES (?, ?, ?, ?, NOW(), NOW())',
+    [id, data.title, data.content, data.imageId]
+  );
+  return (await getNewsById(id))!;
 }
 
 export async function updateNews(id: string, data: Partial<types.News>): Promise<types.News | null> {
-  try {
-    return await prisma.news.update({
-      where: { id },
-      data: {
-        ...(data.title && { title: data.title }),
-        ...(data.content && { content: data.content }),
-        ...(data.imageId && { imageId: data.imageId }),
-      },
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') return null;
-    throw error;
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.title) {
+    updates.push('title = ?');
+    values.push(data.title);
   }
+  if (data.content) {
+    updates.push('content = ?');
+    values.push(data.content);
+  }
+  if (data.imageId) {
+    updates.push('imageId = ?');
+    values.push(data.imageId);
+  }
+
+  if (updates.length === 0) return await getNewsById(id);
+
+  updates.push('updatedAt = NOW()');
+  values.push(id);
+
+  const result = await execute(
+    `UPDATE news SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
+
+  return result.affectedRows > 0 ? await getNewsById(id) : null;
 }
 
 export async function deleteNews(id: string): Promise<boolean> {
-  try {
-    await prisma.news.delete({ where: { id } });
-    return true;
-  } catch (error: any) {
-    if (error.code === 'P2025') return false;
-    throw error;
-  }
+  const result = await execute('DELETE FROM news WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
 // Banners
 export async function getBanners(): Promise<types.Banner[]> {
-  return prisma.banners.findMany({
-    orderBy: { order: 'asc' },
-  });
+  return await query<types.Banner>(
+    'SELECT * FROM banners ORDER BY `order` ASC'
+  );
 }
 
 export async function getBannerById(id: string): Promise<types.Banner | null> {
-  return prisma.banners.findUnique({
-    where: { id },
-  });
+  return await queryOne<types.Banner>(
+    'SELECT * FROM banners WHERE id = ?',
+    [id]
+  );
 }
 
 export async function createBanner(data: Omit<types.Banner, "id" | "createdAt" | "updatedAt">): Promise<types.Banner> {
-  return prisma.banners.create({
-    data: {
-      id: `banner-${Date.now()}`,
-      title: data.title,
-      titleEn: data.titleEn,
-      subtitle: data.subtitle || null,
-      subtitleEn: data.subtitleEn || null,
-      imageId: data.imageId,
-      linkUrl: data.linkUrl || null,
-      isActive: data.isActive ?? true,
-      order: data.order ?? 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  });
+  const id = `banner-${Date.now()}`;
+  await execute(
+    'INSERT INTO banners (id, title, titleEn, subtitle, subtitleEn, imageId, linkUrl, isActive, `order`, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+    [id, data.title, data.titleEn, data.subtitle || null, data.subtitleEn || null, data.imageId, data.linkUrl || null, data.isActive ?? true, data.order ?? 0]
+  );
+  return (await getBannerById(id))!;
 }
 
 export async function updateBanner(id: string, data: Partial<types.Banner>): Promise<types.Banner | null> {
-  try {
-    return await prisma.banners.update({
-      where: { id },
-      data: {
-        ...(data.title && { title: data.title }),
-        ...(data.titleEn && { titleEn: data.titleEn }),
-        ...(data.subtitle !== undefined && { subtitle: data.subtitle }),
-        ...(data.subtitleEn !== undefined && { subtitleEn: data.subtitleEn }),
-        ...(data.imageId && { imageId: data.imageId }),
-        ...(data.linkUrl !== undefined && { linkUrl: data.linkUrl }),
-        ...(data.isActive !== undefined && { isActive: data.isActive }),
-        ...(data.order !== undefined && { order: data.order }),
-      },
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') return null;
-    throw error;
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.title) {
+    updates.push('title = ?');
+    values.push(data.title);
   }
+  if (data.titleEn) {
+    updates.push('titleEn = ?');
+    values.push(data.titleEn);
+  }
+  if (data.subtitle !== undefined) {
+    updates.push('subtitle = ?');
+    values.push(data.subtitle);
+  }
+  if (data.subtitleEn !== undefined) {
+    updates.push('subtitleEn = ?');
+    values.push(data.subtitleEn);
+  }
+  if (data.imageId) {
+    updates.push('imageId = ?');
+    values.push(data.imageId);
+  }
+  if (data.linkUrl !== undefined) {
+    updates.push('linkUrl = ?');
+    values.push(data.linkUrl);
+  }
+  if (data.isActive !== undefined) {
+    updates.push('isActive = ?');
+    values.push(data.isActive);
+  }
+  if (data.order !== undefined) {
+    updates.push('`order` = ?');
+    values.push(data.order);
+  }
+
+  if (updates.length === 0) return await getBannerById(id);
+
+  updates.push('updatedAt = NOW()');
+  values.push(id);
+
+  const result = await execute(
+    `UPDATE banners SET ${updates.join(', ')} WHERE id = ?`,
+    values
+  );
+
+  return result.affectedRows > 0 ? await getBannerById(id) : null;
 }
 
 export async function deleteBanner(id: string): Promise<boolean> {
-  try {
-    await prisma.banners.delete({ where: { id } });
-    return true;
-  } catch (error: any) {
-    if (error.code === 'P2025') return false;
-    throw error;
-  }
+  const result = await execute('DELETE FROM banners WHERE id = ?', [id]);
+  return result.affectedRows > 0;
 }
 
 // Settings
 export async function getSettings(): Promise<types.WebAppSettings> {
-  const settings = await prisma.webapp_settings.findFirst();
+  const settings = await queryOne<types.WebAppSettings>(
+    'SELECT * FROM webapp_settings LIMIT 1'
+  );
 
   if (!settings) {
     // Return default settings
@@ -416,50 +489,108 @@ export async function getSettings(): Promise<types.WebAppSettings> {
 }
 
 export async function updateSettings(data: Partial<types.WebAppSettings>): Promise<types.WebAppSettings> {
-  let settings = await prisma.webapp_settings.findFirst();
+  let settings = await queryOne<types.WebAppSettings>(
+    'SELECT * FROM webapp_settings LIMIT 1'
+  );
 
   if (!settings) {
     // Create new settings
-    settings = await prisma.webapp_settings.create({
-      data: {
-        id: `settings-${Date.now()}`,
-        siteName: data.siteName || "Thai MOOC",
-        siteLogo: data.siteLogo || "",
-        contactEmail: data.contactEmail || "contact@thaimooc.ac.th",
-        contactPhone: data.contactPhone || "02-123-4567",
-        address: data.address || "กรุงเทพมหานคร ประเทศไทย",
-        aboutUs: data.aboutUs || null,
-        aboutUsEn: data.aboutUsEn || null,
-        mapUrl: data.mapUrl || null,
-        facebookUrl: data.facebookUrl || null,
-        twitterUrl: data.twitterUrl || null,
-        youtubeUrl: data.youtubeUrl || null,
-        instagramUrl: data.instagramUrl || null,
-        lineUrl: data.lineUrl || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+    const id = `settings-${Date.now()}`;
+    await execute(
+      'INSERT INTO webapp_settings (id, siteName, siteLogo, contactEmail, contactPhone, address, aboutUs, aboutUsEn, mapUrl, facebookUrl, twitterUrl, youtubeUrl, instagramUrl, lineUrl, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+      [
+        id,
+        data.siteName || "Thai MOOC",
+        data.siteLogo || "",
+        data.contactEmail || "contact@thaimooc.ac.th",
+        data.contactPhone || "02-123-4567",
+        data.address || "กรุงเทพมหานคร ประเทศไทย",
+        data.aboutUs || null,
+        data.aboutUsEn || null,
+        data.mapUrl || null,
+        data.facebookUrl || null,
+        data.twitterUrl || null,
+        data.youtubeUrl || null,
+        data.instagramUrl || null,
+        data.lineUrl || null,
+      ]
+    );
+    settings = (await queryOne<types.WebAppSettings>(
+      'SELECT * FROM webapp_settings WHERE id = ?',
+      [id]
+    ))!;
   } else {
     // Update existing settings
-    settings = await prisma.webapp_settings.update({
-      where: { id: settings.id },
-      data: {
-        ...(data.siteName !== undefined && { siteName: data.siteName }),
-        ...(data.siteLogo !== undefined && { siteLogo: data.siteLogo }),
-        ...(data.contactEmail !== undefined && { contactEmail: data.contactEmail }),
-        ...(data.contactPhone !== undefined && { contactPhone: data.contactPhone }),
-        ...(data.address !== undefined && { address: data.address }),
-        ...(data.aboutUs !== undefined && { aboutUs: data.aboutUs }),
-        ...(data.aboutUsEn !== undefined && { aboutUsEn: data.aboutUsEn }),
-        ...(data.mapUrl !== undefined && { mapUrl: data.mapUrl }),
-        ...(data.facebookUrl !== undefined && { facebookUrl: data.facebookUrl }),
-        ...(data.twitterUrl !== undefined && { twitterUrl: data.twitterUrl }),
-        ...(data.youtubeUrl !== undefined && { youtubeUrl: data.youtubeUrl }),
-        ...(data.instagramUrl !== undefined && { instagramUrl: data.instagramUrl }),
-        ...(data.lineUrl !== undefined && { lineUrl: data.lineUrl }),
-      },
-    });
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (data.siteName !== undefined) {
+      updates.push('siteName = ?');
+      values.push(data.siteName);
+    }
+    if (data.siteLogo !== undefined) {
+      updates.push('siteLogo = ?');
+      values.push(data.siteLogo);
+    }
+    if (data.contactEmail !== undefined) {
+      updates.push('contactEmail = ?');
+      values.push(data.contactEmail);
+    }
+    if (data.contactPhone !== undefined) {
+      updates.push('contactPhone = ?');
+      values.push(data.contactPhone);
+    }
+    if (data.address !== undefined) {
+      updates.push('address = ?');
+      values.push(data.address);
+    }
+    if (data.aboutUs !== undefined) {
+      updates.push('aboutUs = ?');
+      values.push(data.aboutUs);
+    }
+    if (data.aboutUsEn !== undefined) {
+      updates.push('aboutUsEn = ?');
+      values.push(data.aboutUsEn);
+    }
+    if (data.mapUrl !== undefined) {
+      updates.push('mapUrl = ?');
+      values.push(data.mapUrl);
+    }
+    if (data.facebookUrl !== undefined) {
+      updates.push('facebookUrl = ?');
+      values.push(data.facebookUrl);
+    }
+    if (data.twitterUrl !== undefined) {
+      updates.push('twitterUrl = ?');
+      values.push(data.twitterUrl);
+    }
+    if (data.youtubeUrl !== undefined) {
+      updates.push('youtubeUrl = ?');
+      values.push(data.youtubeUrl);
+    }
+    if (data.instagramUrl !== undefined) {
+      updates.push('instagramUrl = ?');
+      values.push(data.instagramUrl);
+    }
+    if (data.lineUrl !== undefined) {
+      updates.push('lineUrl = ?');
+      values.push(data.lineUrl);
+    }
+
+    if (updates.length > 0) {
+      updates.push('updatedAt = NOW()');
+      values.push(settings.id);
+
+      await execute(
+        `UPDATE webapp_settings SET ${updates.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+
+    settings = (await queryOne<types.WebAppSettings>(
+      'SELECT * FROM webapp_settings WHERE id = ?',
+      [settings.id]
+    ))!;
   }
 
   return settings;
@@ -467,15 +598,17 @@ export async function updateSettings(data: Partial<types.WebAppSettings>): Promi
 
 // Image Placeholders
 export async function getImagePlaceholders(): Promise<types.ImagePlaceholder[]> {
-  const placeholders = await prisma.image_placeholders.findMany();
-  return placeholders as types.ImagePlaceholder[];
+  const placeholders = await query<types.ImagePlaceholder>(
+    'SELECT * FROM image_placeholders'
+  );
+  return placeholders;
 }
 
 export async function getImagePlaceholderById(id: string): Promise<types.ImagePlaceholder | null> {
-  const placeholder = await prisma.image_placeholders.findUnique({
-    where: { id },
-  });
-  return placeholder as types.ImagePlaceholder | null;
+  return await queryOne<types.ImagePlaceholder>(
+    'SELECT * FROM image_placeholders WHERE id = ?',
+    [id]
+  );
 }
 
 // Sync version for utils

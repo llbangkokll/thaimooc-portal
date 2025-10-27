@@ -20,6 +20,7 @@ import {
   UserCog,
   Shield,
   ShieldCheck,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -70,6 +71,12 @@ const menuItems = [
     title: "Banners",
     href: "/admin/banners",
     icon: Layers,
+    requireSuperAdmin: false,
+  },
+  {
+    title: "Popups",
+    href: "/admin/popups",
+    icon: MessageSquare,
     requireSuperAdmin: false,
   },
   {

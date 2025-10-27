@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, execute } from "@/lib/mysql-direct";
 import bcrypt from "bcryptjs";
 import { requireSuperAdmin } from "@/lib/auth";
 
@@ -12,20 +12,11 @@ export async function GET(
     await requireSuperAdmin();
 
     const { id } = await params;
-    const user = await prisma.admin_users.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-      }
-    });
+    const user = await queryOne(
+      `SELECT id, username, name, email, role, isActive, lastLogin, createdAt, updatedAt
+       FROM admin_users WHERE id = ?`,
+      [id]
+    );
 
     if (!user) {
       return NextResponse.json(
@@ -65,9 +56,10 @@ export async function PATCH(
     const body = await request.json();
 
     // Check if user exists
-    const existingUser = await prisma.admin_users.findUnique({
-      where: { id },
-    });
+    const existingUser = await queryOne(
+      'SELECT username, email FROM admin_users WHERE id = ?',
+      [id]
+    );
 
     if (!existingUser) {
       return NextResponse.json(
@@ -80,10 +72,11 @@ export async function PATCH(
     }
 
     // Check if username is being changed and already exists
-    if (body.username && body.username !== existingUser.username) {
-      const usernameExists = await prisma.admin_users.findUnique({
-        where: { username: body.username },
-      });
+    if (body.username && body.username !== (existingUser as any).username) {
+      const usernameExists = await queryOne(
+        'SELECT id FROM admin_users WHERE username = ?',
+        [body.username]
+      );
 
       if (usernameExists) {
         return NextResponse.json(
@@ -97,10 +90,11 @@ export async function PATCH(
     }
 
     // Check if email is being changed and already exists
-    if (body.email && body.email !== existingUser.email) {
-      const emailExists = await prisma.admin_users.findUnique({
-        where: { email: body.email },
-      });
+    if (body.email && body.email !== (existingUser as any).email) {
+      const emailExists = await queryOne(
+        'SELECT id FROM admin_users WHERE email = ?',
+        [body.email]
+      );
 
       if (emailExists) {
         return NextResponse.json(
@@ -114,35 +108,53 @@ export async function PATCH(
     }
 
     // Prepare update data
-    const updateData: any = {};
+    const updates: string[] = [];
+    const values: any[] = [];
 
-    if (body.username) updateData.username = body.username;
-    if (body.name) updateData.name = body.name;
-    if (body.email) updateData.email = body.email;
-    if (body.role) updateData.role = body.role;
-    if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.username) {
+      updates.push('username = ?');
+      values.push(body.username);
+    }
+    if (body.name) {
+      updates.push('name = ?');
+      values.push(body.name);
+    }
+    if (body.email) {
+      updates.push('email = ?');
+      values.push(body.email);
+    }
+    if (body.role) {
+      updates.push('role = ?');
+      values.push(body.role);
+    }
+    if (body.isActive !== undefined) {
+      updates.push('isActive = ?');
+      values.push(body.isActive);
+    }
 
     // Hash new password if provided
     if (body.password) {
-      updateData.password = await bcrypt.hash(body.password, 10);
+      const hashedPassword = await bcrypt.hash(body.password, 10);
+      updates.push('password = ?');
+      values.push(hashedPassword);
     }
 
+    updates.push('updatedAt = ?');
+    values.push(new Date());
+
+    values.push(id);
+
     // Update user
-    const updatedUser = await prisma.admin_users.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-      }
-    });
+    await execute(
+      `UPDATE admin_users SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    const updatedUser = await queryOne(
+      `SELECT id, username, name, email, role, isActive, lastLogin, createdAt, updatedAt
+       FROM admin_users WHERE id = ?`,
+      [id]
+    );
 
     return NextResponse.json({
       success: true,
@@ -171,9 +183,10 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if user exists
-    const existingUser = await prisma.admin_users.findUnique({
-      where: { id },
-    });
+    const existingUser = await queryOne(
+      'SELECT id FROM admin_users WHERE id = ?',
+      [id]
+    );
 
     if (!existingUser) {
       return NextResponse.json(
@@ -186,9 +199,7 @@ export async function DELETE(
     }
 
     // Delete user
-    await prisma.admin_users.delete({
-      where: { id },
-    });
+    await execute('DELETE FROM admin_users WHERE id = ?', [id]);
 
     return NextResponse.json({
       success: true,

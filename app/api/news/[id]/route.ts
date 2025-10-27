@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, execute } from "@/lib/mysql-direct";
 
 export async function GET(
   request: NextRequest,
@@ -7,9 +7,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const news = await prisma.news.findUnique({
-      where: { id },
-    });
+    const news = await queryOne(
+      'SELECT * FROM news WHERE id = ?',
+      [id]
+    );
 
     if (!news) {
       return NextResponse.json(
@@ -44,21 +45,33 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const updatedNews = await prisma.news.update({
-      where: { id },
-      data: {
-        ...(body.title && { title: body.title }),
-        ...(body.content && { content: body.content }),
-        ...(body.imageId && { imageId: body.imageId }),
-      },
-    });
+    const updates: string[] = [];
+    const values: any[] = [];
 
-    return NextResponse.json({
-      success: true,
-      data: updatedNews,
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if (body.title) {
+      updates.push('title = ?');
+      values.push(body.title);
+    }
+    if (body.content) {
+      updates.push('content = ?');
+      values.push(body.content);
+    }
+    if (body.imageId) {
+      updates.push('imageId = ?');
+      values.push(body.imageId);
+    }
+
+    updates.push('updatedAt = ?');
+    values.push(new Date());
+
+    values.push(id);
+
+    const result = await execute(
+      `UPDATE news SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -67,6 +80,17 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const updatedNews = await queryOne(
+      'SELECT * FROM news WHERE id = ?',
+      [id]
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: updatedNews,
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,
@@ -83,16 +107,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await prisma.news.delete({
-      where: { id },
-    });
+    const result = await execute('DELETE FROM news WHERE id = ?', [id]);
 
-    return NextResponse.json({
-      success: true,
-      message: "News deleted successfully",
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -101,6 +118,12 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    return NextResponse.json({
+      success: true,
+      message: "News deleted successfully",
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,

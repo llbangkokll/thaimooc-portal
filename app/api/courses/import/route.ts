@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, execute } from "@/lib/mysql-direct";
 
 interface CSVCourseData {
   title: string;
@@ -56,9 +56,10 @@ export async function POST(request: NextRequest) {
 
         // Check if institution exists (only if provided)
         if (course.institutionId) {
-          const institution = await prisma.institutions.findUnique({
-            where: { id: course.institutionId },
-          });
+          const institution = await queryOne(
+            'SELECT id FROM institutions WHERE id = ?',
+            [course.institutionId]
+          );
           if (!institution) {
             results.failed++;
             results.errors.push(`Row ${i + 1}: Institution ID "${course.institutionId}" not found`);
@@ -68,9 +69,10 @@ export async function POST(request: NextRequest) {
 
         // Check if instructor exists (only if provided)
         if (course.instructorId) {
-          const instructor = await prisma.instructors.findUnique({
-            where: { id: course.instructorId },
-          });
+          const instructor = await queryOne(
+            'SELECT id FROM instructors WHERE id = ?',
+            [course.instructorId]
+          );
           if (!instructor) {
             results.failed++;
             results.errors.push(`Row ${i + 1}: Instructor ID "${course.instructorId}" not found`);
@@ -105,51 +107,66 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const now = new Date();
+
         // Create course
-        await prisma.courses.create({
-          data: {
+        await execute(
+          `INSERT INTO courses (
+            id, title, titleEn, description, learningOutcomes, targetAudience,
+            prerequisites, tags, courseUrl, videoUrl, institutionId, instructorId,
+            imageId, level, teachingLanguage, durationHours, hasCertificate,
+            enrollCount, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
             id,
-            title: course.title,
-            titleEn: course.titleEn,
-            description: course.description,
-            learningOutcomes: learningOutcomes || null,
-            targetAudience: course.targetAudience || null,
-            prerequisites: course.prerequisites || null,
-            tags: course.tags || null,
-            courseUrl: course.courseUrl || null,
-            videoUrl: course.videoUrl || null,
-            institutionId: course.institutionId || null,
-            instructorId: course.instructorId || null,
-            imageId: course.imageId || null,
-            level: course.level || null,
-            teachingLanguage: course.teachingLanguage || null,
-            durationHours: course.durationHours ? parseInt(course.durationHours) : null,
-            hasCertificate: course.hasCertificate?.toLowerCase() === 'true' || course.hasCertificate === '1',
-            enrollCount: 0,
-            updatedAt: new Date(),
-          },
-        });
+            course.title,
+            course.titleEn,
+            course.description,
+            learningOutcomes || null,
+            course.targetAudience || null,
+            course.prerequisites || null,
+            course.tags || null,
+            course.courseUrl || null,
+            course.videoUrl || null,
+            course.institutionId || null,
+            course.instructorId || null,
+            course.imageId || null,
+            course.level || null,
+            course.teachingLanguage || null,
+            course.durationHours ? parseInt(course.durationHours) : null,
+            course.hasCertificate?.toLowerCase() === 'true' || course.hasCertificate === '1',
+            0,
+            now,
+            now
+          ]
+        );
 
         // Create category relations
         if (categoryIds.length > 0) {
-          await prisma.course_categories.createMany({
-            data: categoryIds.map(categoryId => ({
-              courseId: id,
-              categoryId,
-            })),
-            skipDuplicates: true,
-          });
+          for (const categoryId of categoryIds) {
+            try {
+              await execute(
+                'INSERT INTO course_categories (courseId, categoryId) VALUES (?, ?)',
+                [id, categoryId]
+              );
+            } catch (err) {
+              // Skip duplicates
+            }
+          }
         }
 
         // Create course type relations
         if (courseTypeIds.length > 0) {
-          await prisma.course_course_types.createMany({
-            data: courseTypeIds.map(courseTypeId => ({
-              courseId: id,
-              courseTypeId,
-            })),
-            skipDuplicates: true,
-          });
+          for (const courseTypeId of courseTypeIds) {
+            try {
+              await execute(
+                'INSERT INTO course_course_types (courseId, courseTypeId) VALUES (?, ?)',
+                [id, courseTypeId]
+              );
+            } catch (err) {
+              // Skip duplicates
+            }
+          }
         }
 
         results.success++;

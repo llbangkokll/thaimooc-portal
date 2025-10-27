@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
-import { prisma } from './prisma';
+import { queryOne, execute } from './mysql-direct';
 
 const SECRET_KEY = new TextEncoder().encode(
   process.env.JWT_SECRET || 'thai-mooc-secret-key-change-in-production'
@@ -99,9 +99,10 @@ export async function authenticateUser(
   username: string,
   password: string
 ): Promise<SessionUser | null> {
-  const user = await prisma.admin_users.findUnique({
-    where: { username },
-  });
+  const user = await queryOne<any>(
+    'SELECT * FROM admin_users WHERE username = ?',
+    [username]
+  );
 
   if (!user || !user.isActive) {
     return null;
@@ -114,10 +115,10 @@ export async function authenticateUser(
   }
 
   // Update last login
-  await prisma.admin_users.update({
-    where: { id: user.id },
-    data: { lastLogin: new Date() },
-  });
+  await execute(
+    'UPDATE admin_users SET lastLogin = NOW() WHERE id = ?',
+    [user.id]
+  );
 
   return {
     id: user.id,

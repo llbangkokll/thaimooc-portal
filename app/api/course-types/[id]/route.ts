@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, execute } from "@/lib/mysql-direct";
 
 export async function GET(
   request: NextRequest,
@@ -7,9 +7,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const courseType = await prisma.course_types.findUnique({
-      where: { id },
-    });
+    const courseType = await queryOne(
+      'SELECT * FROM course_types WHERE id = ?',
+      [id]
+    );
 
     if (!courseType) {
       return NextResponse.json(
@@ -44,23 +45,37 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const updatedCourseType = await prisma.course_types.update({
-      where: { id },
-      data: {
-        ...(body.name && { name: body.name }),
-        ...(body.nameEn && { nameEn: body.nameEn }),
-        ...(body.icon !== undefined && { icon: body.icon }),
-        ...(body.description !== undefined && { description: body.description }),
-        updatedAt: new Date(),
-      },
-    });
+    const updates: string[] = [];
+    const values: any[] = [];
 
-    return NextResponse.json({
-      success: true,
-      data: updatedCourseType,
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if (body.name) {
+      updates.push('name = ?');
+      values.push(body.name);
+    }
+    if (body.nameEn) {
+      updates.push('nameEn = ?');
+      values.push(body.nameEn);
+    }
+    if (body.icon !== undefined) {
+      updates.push('icon = ?');
+      values.push(body.icon);
+    }
+    if (body.description !== undefined) {
+      updates.push('description = ?');
+      values.push(body.description);
+    }
+
+    updates.push('updatedAt = ?');
+    values.push(new Date());
+
+    values.push(id);
+
+    const result = await execute(
+      `UPDATE course_types SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -69,6 +84,17 @@ export async function PUT(
         { status: 404 }
       );
     }
+
+    const updatedCourseType = await queryOne(
+      'SELECT * FROM course_types WHERE id = ?',
+      [id]
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: updatedCourseType,
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,
@@ -85,16 +111,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await prisma.course_types.delete({
-      where: { id },
-    });
+    const result = await execute('DELETE FROM course_types WHERE id = ?', [id]);
 
-    return NextResponse.json({
-      success: true,
-      message: "Course type deleted successfully",
-    });
-  } catch (error: any) {
-    if (error.code === 'P2025') {
+    if ((result as any).affectedRows === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -103,6 +122,12 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    return NextResponse.json({
+      success: true,
+      message: "Course type deleted successfully",
+    });
+  } catch (error: any) {
     return NextResponse.json(
       {
         success: false,

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, execute } from "@/lib/mysql-direct";
 
 export async function GET() {
   try {
-    const courseTypes = await prisma.course_types.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const courseTypes = await query(
+      'SELECT * FROM course_types ORDER BY createdAt DESC'
+    );
 
     return NextResponse.json({
       success: true,
@@ -37,20 +37,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const newCourseType = await prisma.course_types.create({
-      data: {
-        name: body.name,
-        nameEn: body.nameEn,
-        icon: body.icon || null,
-        description: body.description || null,
-        updatedAt: new Date(),
-      },
-    });
+    const id = `ctype-${Date.now()}`;
+    const now = new Date();
+
+    await execute(
+      `INSERT INTO course_types (id, name, nameEn, icon, description, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, body.name, body.nameEn, body.icon || null, body.description || null, now, now]
+    );
+
+    const newCourseType = await query(
+      'SELECT * FROM course_types WHERE id = ?',
+      [id]
+    );
 
     return NextResponse.json(
       {
         success: true,
-        data: newCourseType,
+        data: newCourseType[0],
       },
       { status: 201 }
     );

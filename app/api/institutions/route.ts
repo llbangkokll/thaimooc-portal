@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, execute } from "@/lib/mysql-direct";
 
 export async function GET() {
   try {
-    const institutions = await prisma.institutions.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const institutions = await query(
+      'SELECT * FROM institutions ORDER BY createdAt DESC'
+    );
 
     return NextResponse.json({
       success: true,
@@ -39,9 +39,9 @@ export async function POST(request: NextRequest) {
 
     // Generate ID: YYNNN format (e.g., 25001)
     const year = new Date().getFullYear().toString().slice(-2); // Get last 2 digits of year
-    const lastInstitution = await prisma.institutions.findFirst({
-      orderBy: { id: 'desc' },
-    });
+    const lastInstitution = await queryOne<{ id: string }>(
+      'SELECT id FROM institutions ORDER BY id DESC LIMIT 1'
+    );
 
     let sequence = 1;
     if (lastInstitution && lastInstitution.id.startsWith(year)) {
@@ -50,20 +50,28 @@ export async function POST(request: NextRequest) {
     }
 
     const id = `${year}${sequence.toString().padStart(3, '0')}`;
+    const now = new Date();
 
-    const newInstitution = await prisma.institutions.create({
-      data: {
+    await execute(
+      `INSERT INTO institutions (id, name, nameEn, abbreviation, logoUrl, website, description, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
         id,
-        name: body.name,
-        nameEn: body.nameEn,
-        abbreviation: body.abbreviation,
-        logoUrl: body.logoUrl,
-        website: body.website || null,
-        description: body.description || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+        body.name,
+        body.nameEn,
+        body.abbreviation,
+        body.logoUrl,
+        body.website || null,
+        body.description || null,
+        now,
+        now
+      ]
+    );
+
+    const newInstitution = await queryOne(
+      'SELECT * FROM institutions WHERE id = ?',
+      [id]
+    );
 
     return NextResponse.json(
       {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { queryOne, execute } from "@/lib/mysql-direct";
 
 interface CSVInstructorData {
   name: string;
@@ -44,9 +44,10 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if institution exists
-        const institution = await prisma.institutions.findUnique({
-          where: { id: instructor.institutionId },
-        });
+        const institution = await queryOne(
+          'SELECT id FROM institutions WHERE id = ?',
+          [instructor.institutionId]
+        );
         if (!institution) {
           results.failed++;
           results.errors.push(`Row ${i + 1}: Institution ID "${instructor.institutionId}" not found`);
@@ -55,22 +56,25 @@ export async function POST(request: NextRequest) {
 
         // Generate ID
         const id = `instr-${Date.now()}-${i}`;
+        const now = new Date();
 
         // Create instructor
-        await prisma.instructors.create({
-          data: {
+        await execute(
+          `INSERT INTO instructors (id, name, nameEn, title, institutionId, bio, imageUrl, email, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
             id,
-            name: instructor.name,
-            nameEn: instructor.nameEn,
-            title: instructor.title,
-            institutionId: instructor.institutionId,
-            bio: instructor.bio || null,
-            imageUrl: instructor.imageUrl || null,
-            email: instructor.email || null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        });
+            instructor.name,
+            instructor.nameEn,
+            instructor.title,
+            instructor.institutionId,
+            instructor.bio || null,
+            instructor.imageUrl || null,
+            instructor.email || null,
+            now,
+            now
+          ]
+        );
 
         results.success++;
       } catch (error: any) {

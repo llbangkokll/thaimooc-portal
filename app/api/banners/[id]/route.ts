@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { queryOne, execute } from "@/lib/mysql-direct";
 
 export async function GET(
   request: NextRequest,
@@ -8,9 +8,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const banner = await prisma.banners.findUnique({
-      where: { id },
-    });
+    const banner = await queryOne(
+      'SELECT * FROM banners WHERE id = ?',
+      [id]
+    );
 
     if (!banner) {
       return NextResponse.json(
@@ -45,28 +46,106 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const updatedBanner = await prisma.banners.update({
-      where: { id },
-      data: {
-        ...(body.title !== undefined && { title: body.title }),
-        ...(body.titleEn !== undefined && { titleEn: body.titleEn }),
-        ...(body.subtitle !== undefined && { subtitle: body.subtitle || null }),
-        ...(body.subtitleEn !== undefined && { subtitleEn: body.subtitleEn || null }),
-        ...(body.description !== undefined && { description: body.description || null }),
-        ...(body.descriptionEn !== undefined && { descriptionEn: body.descriptionEn || null }),
-        ...(body.buttonText !== undefined && { buttonText: body.buttonText || null }),
-        ...(body.buttonTextEn !== undefined && { buttonTextEn: body.buttonTextEn || null }),
-        ...(body.imageId !== undefined && { imageId: body.imageId || "" }),
-        ...(body.overlayImageId !== undefined && { overlayImageId: body.overlayImageId || null }),
-        ...(body.linkUrl !== undefined && { linkUrl: body.linkUrl || null }),
-        ...(body.backgroundColor !== undefined && { backgroundColor: body.backgroundColor || null }),
-        ...(body.textColor !== undefined && { textColor: body.textColor || null }),
-        ...(body.accentColor !== undefined && { accentColor: body.accentColor || null }),
-        ...(body.isActive !== undefined && { isActive: body.isActive }),
-        ...(body.order !== undefined && { order: body.order }),
-        ...(body.templateId !== undefined && { templateId: body.templateId || null }),
-      },
-    });
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (body.title !== undefined) {
+      updates.push('title = ?');
+      values.push(body.title);
+    }
+    if (body.titleEn !== undefined) {
+      updates.push('titleEn = ?');
+      values.push(body.titleEn);
+    }
+    if (body.subtitle !== undefined) {
+      updates.push('subtitle = ?');
+      values.push(body.subtitle || null);
+    }
+    if (body.subtitleEn !== undefined) {
+      updates.push('subtitleEn = ?');
+      values.push(body.subtitleEn || null);
+    }
+    if (body.description !== undefined) {
+      updates.push('description = ?');
+      values.push(body.description || null);
+    }
+    if (body.descriptionEn !== undefined) {
+      updates.push('descriptionEn = ?');
+      values.push(body.descriptionEn || null);
+    }
+    if (body.buttonText !== undefined) {
+      updates.push('buttonText = ?');
+      values.push(body.buttonText || null);
+    }
+    if (body.buttonTextEn !== undefined) {
+      updates.push('buttonTextEn = ?');
+      values.push(body.buttonTextEn || null);
+    }
+    if (body.imageId !== undefined) {
+      updates.push('imageId = ?');
+      values.push(body.imageId || "");
+    }
+    if (body.backgroundImageId !== undefined) {
+      updates.push('backgroundImageId = ?');
+      values.push(body.backgroundImageId || null);
+    }
+    if (body.overlayImageId !== undefined) {
+      updates.push('overlayImageId = ?');
+      values.push(body.overlayImageId || null);
+    }
+    if (body.linkUrl !== undefined) {
+      updates.push('linkUrl = ?');
+      values.push(body.linkUrl || null);
+    }
+    if (body.backgroundColor !== undefined) {
+      updates.push('backgroundColor = ?');
+      values.push(body.backgroundColor || null);
+    }
+    if (body.textColor !== undefined) {
+      updates.push('textColor = ?');
+      values.push(body.textColor || null);
+    }
+    if (body.accentColor !== undefined) {
+      updates.push('accentColor = ?');
+      values.push(body.accentColor || null);
+    }
+    if (body.isActive !== undefined) {
+      updates.push('isActive = ?');
+      values.push(body.isActive);
+    }
+    if (body.order !== undefined) {
+      updates.push('`order` = ?');
+      values.push(body.order);
+    }
+    if (body.templateId !== undefined) {
+      updates.push('templateId = ?');
+      values.push(body.templateId || null);
+    }
+
+    updates.push('updatedAt = ?');
+    values.push(new Date());
+
+    values.push(id);
+
+    const result = await execute(
+      `UPDATE banners SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    if ((result as any).affectedRows === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Banner not found",
+        },
+        { status: 404 }
+      );
+    }
+
+    const updatedBanner = await queryOne(
+      'SELECT * FROM banners WHERE id = ?',
+      [id]
+    );
 
     // Revalidate the cache for banner pages
     revalidatePath("/admin/banners");
@@ -79,15 +158,6 @@ export async function PUT(
     });
   } catch (error: any) {
     console.error("Error updating banner:", error);
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Banner not found",
-        },
-        { status: 404 }
-      );
-    }
     return NextResponse.json(
       {
         success: false,
@@ -104,9 +174,17 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await prisma.banners.delete({
-      where: { id },
-    });
+    const result = await execute('DELETE FROM banners WHERE id = ?', [id]);
+
+    if ((result as any).affectedRows === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Banner not found",
+        },
+        { status: 404 }
+      );
+    }
 
     // Revalidate the cache for banner pages
     revalidatePath("/admin/banners");
@@ -117,15 +195,6 @@ export async function DELETE(
       message: "Banner deleted successfully",
     });
   } catch (error: any) {
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Banner not found",
-        },
-        { status: 404 }
-      );
-    }
     return NextResponse.json(
       {
         success: false,

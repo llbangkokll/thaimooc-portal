@@ -51,19 +51,32 @@ function CoursesPageContent() {
         ...c,
         createdAt: new Date(c.createdAt),
         updatedAt: new Date(c.updatedAt),
-      }));
+      })).sort((a: any, b: any) => {
+        // Sort by Thai name (or English if Thai is not available)
+        const nameA = a.name || a.nameEn || '';
+        const nameB = b.name || b.nameEn || '';
+        return nameA.localeCompare(nameB, 'th');
+      });
 
       const insts = (instsRes.data || []).map((i: any) => ({
         ...i,
         createdAt: new Date(i.createdAt),
         updatedAt: new Date(i.updatedAt),
-      }));
+      })).sort((a: any, b: any) => {
+        const nameA = a.name || a.nameEn || '';
+        const nameB = b.name || b.nameEn || '';
+        return nameA.localeCompare(nameB, 'th');
+      });
 
       const types = (typesRes.data || []).map((t: any) => ({
         ...t,
         createdAt: new Date(t.createdAt),
         updatedAt: new Date(t.updatedAt),
-      }));
+      })).sort((a: any, b: any) => {
+        const nameA = a.name || a.nameEn || '';
+        const nameB = b.name || b.nameEn || '';
+        return nameA.localeCompare(nameB, 'th');
+      });
 
       setAllCourses(courses);
       setFilteredCourses(courses);

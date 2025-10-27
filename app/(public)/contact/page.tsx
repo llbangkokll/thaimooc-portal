@@ -54,7 +54,7 @@ export default function ContactPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-4">
-                <Mail className="h-5 w-5 text-primary mt-1" />
+                <Mail className="text-primary mt-1 flex-shrink-0" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px' }} />
                 <div>
                   <h3 className="font-semibold mb-1" style={{ fontSize: "1.25rem" }}>
                     {t("อีเมล", "Email")}
@@ -66,7 +66,7 @@ export default function ContactPage() {
               </div>
 
               <div className="flex items-start gap-4">
-                <Phone className="h-5 w-5 text-primary mt-1" />
+                <Phone className="text-primary mt-1 flex-shrink-0" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px' }} />
                 <div>
                   <h3 className="font-semibold mb-1" style={{ fontSize: "1.25rem" }}>
                     {t("โทรศัพท์", "Phone")}
@@ -78,7 +78,7 @@ export default function ContactPage() {
               </div>
 
               <div className="flex items-start gap-4">
-                <MapPin className="h-5 w-5 text-primary mt-1" />
+                <MapPin className="text-primary mt-1 flex-shrink-0" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px' }} />
                 <div>
                   <h3 className="font-semibold mb-1" style={{ fontSize: "1.25rem" }}>
                     {t("ที่อยู่", "Address")}
@@ -94,7 +94,7 @@ export default function ContactPage() {
               </div>
 
               <div className="flex items-start gap-4">
-                <Clock className="h-5 w-5 text-primary mt-1" />
+                <Clock className="text-primary mt-1 flex-shrink-0" style={{ width: '24px', height: '24px', minWidth: '24px', minHeight: '24px' }} />
                 <div>
                   <h3 className="font-semibold mb-1" style={{ fontSize: "1.25rem" }}>
                     {t("เวลาทำการ", "Working Hours")}
@@ -119,23 +119,37 @@ export default function ContactPage() {
             </CardHeader>
             <CardContent>
               {settings?.mapUrl ? (
-                <div className="rounded-lg overflow-hidden h-96">
-                  <iframe
-                    src={settings.mapUrl}
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
+                <div className="rounded-lg overflow-hidden h-96 relative">
+                  {settings.mapUrl.includes('<iframe') ? (
+                    // If mapUrl contains iframe HTML, render it directly
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: settings.mapUrl.replace(
+                          /<iframe/g,
+                          '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"'
+                        )
+                      }}
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    // If mapUrl is just a URL, use iframe
+                    <iframe
+                      src={settings.mapUrl}
+                      className="absolute top-0 left-0 w-full h-full"
+                      style={{ border: 0 }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title="Map Location"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="bg-gray-100 rounded-lg h-96 flex items-center justify-center">
                   <p className="text-muted-foreground text-center px-4">
                     {t(
-                      "แผนที่จะแสดงที่นี่",
-                      "Map will be displayed here"
+                      "กรุณาตั้งค่า Google Maps URL ในหน้า Admin Settings",
+                      "Please configure Google Maps URL in Admin Settings"
                     )}
                   </p>
                 </div>

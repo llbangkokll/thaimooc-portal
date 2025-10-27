@@ -1,5 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/mysql-direct";
+
+interface Course {
+  id: string;
+  title: string;
+  titleEn: string;
+  description: string;
+  learningOutcomes: string | null;
+  targetAudience: string | null;
+  prerequisites: string | null;
+  tags: string | null;
+  assessmentCriteria: string | null;
+  courseUrl: string | null;
+  videoUrl: string | null;
+  contentStructure: string | null;
+  institutionId: string | null;
+  instructorId: string | null;
+  imageId: string | null;
+  bannerImageId: string | null;
+  level: string | null;
+  teachingLanguage: string | null;
+  durationHours: number | null;
+  hasCertificate: boolean;
+  enrollCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  course_categories?: { categoryId: string }[];
+  course_course_types?: { courseTypeId: string }[];
+  course_instructors?: { instructorId: string }[];
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,35 +37,53 @@ export async function GET(request: NextRequest) {
     const institutionId = searchParams.get("institutionId");
     const level = searchParams.get("level");
 
-    const courses = await prisma.courses.findMany({
-      where: {
-        ...(categoryId && {
-          course_categories: {
-            some: { categoryId }
-          }
-        }),
-        ...(institutionId && { institutionId }),
-        ...(level && { level }),
-      },
-      include: {
-        course_categories: {
-          select: {
-            categoryId: true,
-          },
-        },
-        course_course_types: {
-          select: {
-            courseTypeId: true,
-          },
-        },
-        course_instructors: {
-          select: {
-            instructorId: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Build WHERE clause
+    const whereConditions: string[] = [];
+    const params: any[] = [];
+
+    if (categoryId) {
+      whereConditions.push('c.id IN (SELECT courseId FROM course_categories WHERE categoryId = ?)');
+      params.push(categoryId);
+    }
+    if (institutionId) {
+      whereConditions.push('c.institutionId = ?');
+      params.push(institutionId);
+    }
+    if (level) {
+      whereConditions.push('c.level = ?');
+      params.push(level);
+    }
+
+    const whereClause = whereConditions.length > 0
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+
+    // Fetch courses
+    const courses = await query<Course>(
+      `SELECT * FROM courses c ${whereClause} ORDER BY c.createdAt DESC`,
+      params
+    );
+
+    // Fetch relations for each course
+    for (const course of courses) {
+      const categories = await query<{ categoryId: string }>(
+        'SELECT categoryId FROM course_categories WHERE courseId = ?',
+        [course.id]
+      );
+      (course as any).courseCategories = categories;
+
+      const courseTypes = await query<{ courseTypeId: string }>(
+        'SELECT courseTypeId FROM course_course_types WHERE courseId = ?',
+        [course.id]
+      );
+      (course as any).courseCourseTypes = courseTypes;
+
+      const instructors = await query<{ instructorId: string }>(
+        'SELECT instructorId FROM course_instructors WHERE courseId = ?',
+        [course.id]
+      );
+      (course as any).courseInstructors = instructors;
+    }
 
     return NextResponse.json({
       success: true,
@@ -79,53 +126,87 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const newCourse = await prisma.courses.create({
-      data: {
-        title: body.title,
-        titleEn: body.titleEn,
-        description: body.description,
-        learningOutcomes: body.learningOutcomes || null,
-        targetAudience: body.targetAudience || null,
-        prerequisites: body.prerequisites || null,
-        tags: body.tags || null,
-        assessmentCriteria: body.assessmentCriteria || null,
-        courseUrl: body.courseUrl || null,
-        videoUrl: body.videoUrl || null,
-        contentStructure: body.contentStructure || null,
-        institutionId: body.institutionId,
-        instructorId: body.instructorId,
-        imageId: body.imageId,
-        bannerImageId: body.bannerImageId || null,
-        level: body.level,
-        teachingLanguage: body.teachingLanguage || null,
-        durationHours: body.durationHours || 0,
-        hasCertificate: body.hasCertificate || false,
-        enrollCount: body.enrollCount || 0,
-        course_categories: {
-          create: body.categoryIds.map((categoryId: string) => ({
-            categoryId,
-          })),
-        },
-        ...(body.courseTypeIds && Array.isArray(body.courseTypeIds) && body.courseTypeIds.length > 0 && {
-          course_course_types: {
-            create: body.courseTypeIds.map((courseTypeId: string) => ({
-              courseTypeId,
-            })),
-          },
-        }),
-        ...(body.instructorIds && Array.isArray(body.instructorIds) && body.instructorIds.length > 0 ? {
-          course_instructors: {
-            create: body.instructorIds.map((instructorId: string) => ({
-              instructorId,
-            })),
-          },
-        } : body.instructorId ? {
-          course_instructors: {
-            create: [{ instructorId: body.instructorId }],
-          },
-        } : {}),
-      },
+    const { transaction } = await import("@/lib/mysql-direct");
+
+    const courseId = `course-${Date.now()}`;
+    const now = new Date();
+
+    await transaction(async (execute) => {
+      // Insert course
+      await execute(
+        `INSERT INTO courses (
+          id, title, titleEn, description, learningOutcomes, targetAudience,
+          prerequisites, tags, assessmentCriteria, courseUrl, videoUrl,
+          contentStructure, institutionId, instructorId, imageId, bannerImageId,
+          level, teachingLanguage, durationHours, hasCertificate, enrollCount,
+          createdAt, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          courseId,
+          body.title,
+          body.titleEn,
+          body.description,
+          body.learningOutcomes || null,
+          body.targetAudience || null,
+          body.prerequisites || null,
+          body.tags || null,
+          body.assessmentCriteria || null,
+          body.courseUrl || null,
+          body.videoUrl || null,
+          body.contentStructure || null,
+          body.institutionId,
+          body.instructorId,
+          body.imageId,
+          body.bannerImageId || null,
+          body.level,
+          body.teachingLanguage || null,
+          body.durationHours || 0,
+          body.hasCertificate || false,
+          body.enrollCount || 0,
+          now,
+          now
+        ]
+      );
+
+      // Insert course categories
+      for (const categoryId of body.categoryIds) {
+        await execute(
+          'INSERT INTO course_categories (courseId, categoryId) VALUES (?, ?)',
+          [courseId, categoryId]
+        );
+      }
+
+      // Insert course types if provided
+      if (body.courseTypeIds && Array.isArray(body.courseTypeIds) && body.courseTypeIds.length > 0) {
+        for (const courseTypeId of body.courseTypeIds) {
+          await execute(
+            'INSERT INTO course_course_types (courseId, courseTypeId) VALUES (?, ?)',
+            [courseId, courseTypeId]
+          );
+        }
+      }
+
+      // Insert course instructors
+      if (body.instructorIds && Array.isArray(body.instructorIds) && body.instructorIds.length > 0) {
+        for (const instructorId of body.instructorIds) {
+          await execute(
+            'INSERT INTO course_instructors (courseId, instructorId) VALUES (?, ?)',
+            [courseId, instructorId]
+          );
+        }
+      } else if (body.instructorId) {
+        await execute(
+          'INSERT INTO course_instructors (courseId, instructorId) VALUES (?, ?)',
+          [courseId, body.instructorId]
+        );
+      }
     });
+
+    const { queryOne } = await import("@/lib/mysql-direct");
+    const newCourse = await queryOne<Course>(
+      'SELECT * FROM courses WHERE id = ?',
+      [courseId]
+    );
 
     return NextResponse.json(
       {

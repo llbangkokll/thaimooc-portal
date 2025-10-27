@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useLanguage } from "@/lib/language-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import type { Institution, Course, Instructor } from "@/lib/types";
-import { Building2, BookOpen, Users } from "lucide-react";
+import { Building2, BookOpen, Users, Search } from "lucide-react";
 
 export default function InstitutionsPage() {
   const { language, t } = useLanguage();
@@ -14,6 +15,7 @@ export default function InstitutionsPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -56,6 +58,18 @@ export default function InstitutionsPage() {
     return instructors.filter(instructor => instructor.institutionId === institutionId).length;
   };
 
+  // Filter institutions based on search query
+  const filteredInstitutions = institutions.filter((institution) => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    const name = language === "th" ? institution.name : institution.nameEn;
+    const abbreviation = institution.abbreviation || "";
+    return (
+      name.toLowerCase().includes(searchLower) ||
+      abbreviation.toLowerCase().includes(searchLower)
+    );
+  });
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-8">
@@ -65,7 +79,29 @@ export default function InstitutionsPage() {
         </h1>
       </div>
 
-      <p className="text-lg text-muted-foreground mb-12">
+      {/* Search Box */}
+      <div className="mb-8 flex flex-col items-center">
+        <div className="relative max-w-md w-full">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder={t("ค้นหาสถาบัน...", "Search institutions...")}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {searchQuery && (
+          <p className="text-sm text-muted-foreground mt-2 text-center">
+            {t(
+              `พบ ${filteredInstitutions.length} สถาบัน`,
+              `Found ${filteredInstitutions.length} institutions`
+            )}
+          </p>
+        )}
+      </div>
+
+      <p className="text-sm text-muted-foreground mb-8 text-center">
         {t(
           "เรามีความร่วมมือกับสถาบันการศึกษาชั้นนำทั่วประเทศ เพื่อนำเสนอคอร์สเรียนคุณภาพสูงให้กับผู้เรียน",
           "We partner with leading educational institutions nationwide to offer high-quality courses to learners."
@@ -73,7 +109,7 @@ export default function InstitutionsPage() {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {institutions.map((institution) => (
+        {filteredInstitutions.map((institution) => (
           <a
             key={institution.id}
             href={`/courses?institution=${institution.id}`}

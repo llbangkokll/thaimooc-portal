@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { query, queryOne, execute } from "@/lib/mysql-direct";
 import bcrypt from "bcryptjs";
 import { requireSuperAdmin } from "@/lib/auth";
 
@@ -8,21 +8,11 @@ export async function GET() {
     // Only Super Admin can access
     await requireSuperAdmin();
 
-    const users = await prisma.admin_users.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-        // Exclude password from response
-      }
-    });
+    const users = await query(
+      `SELECT id, username, name, email, role, isActive, lastLogin, createdAt, updatedAt
+       FROM admin_users
+       ORDER BY createdAt DESC`
+    );
 
     return NextResponse.json({
       success: true,
@@ -80,9 +70,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if username already exists
-    const existingUser = await prisma.admin_users.findUnique({
-      where: { username: body.username },
-    });
+    const existingUser = await queryOne(
+      'SELECT id FROM admin_users WHERE username = ?',
+      [body.username]
+    );
 
     if (existingUser) {
       return NextResponse.json(
@@ -95,9 +86,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email already exists
-    const existingEmail = await prisma.admin_users.findUnique({
-      where: { email: body.email },
-    });
+    const existingEmail = await queryOne(
+      'SELECT id FROM admin_users WHERE email = ?',
+      [body.email]
+    );
 
     if (existingEmail) {
       return NextResponse.json(
@@ -112,27 +104,31 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(body.password, 10);
 
+    const id = `user-${Date.now()}`;
+    const now = new Date();
+
     // Create new admin user
-    const newUser = await prisma.admin_users.create({
-      data: {
-        username: body.username,
-        password: hashedPassword,
-        name: body.name,
-        email: body.email,
-        role: body.role || "admin",
-        isActive: body.isActive !== undefined ? body.isActive : true,
-      },
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        email: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      }
-    });
+    await execute(
+      `INSERT INTO admin_users (id, username, password, name, email, role, isActive, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        body.username,
+        hashedPassword,
+        body.name,
+        body.email,
+        body.role || "admin",
+        body.isActive !== undefined ? body.isActive : true,
+        now,
+        now
+      ]
+    );
+
+    const newUser = await queryOne(
+      `SELECT id, username, name, email, role, isActive, createdAt, updatedAt
+       FROM admin_users WHERE id = ?`,
+      [id]
+    );
 
     return NextResponse.json(
       {

@@ -12,6 +12,7 @@ import { ArrowRight, SquarePlus, ArrowUpSquare } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
 import { getIconComponent } from "@/lib/icon-map";
 import { BannerDisplay } from "@/components/public/banner-display";
+import { PopupModal } from "@/components/public/popup-modal";
 
 export default function HomePage() {
   const { language, t } = useLanguage();
@@ -83,6 +84,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
+      {/* Popup Modal */}
+      <PopupModal language={language} />
+
       {/* Hero Carousel */}
       <BannerDisplay banners={banners} language={language} />
 
@@ -154,7 +158,7 @@ export default function HomePage() {
                 <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full group">
                   <CardContent className="flex flex-col items-center justify-center p-6 text-center">
                     <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                      <IconComponent className="w-8 h-8 text-primary" />
+                      <IconComponent className="w-8 h-8 text-primary" strokeWidth={1.5} />
                     </div>
                     <h3 className="font-semibold text-sm">
                       {language === "th" ? category.name : category.nameEn}

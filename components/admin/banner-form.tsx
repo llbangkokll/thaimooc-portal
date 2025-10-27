@@ -31,6 +31,7 @@ export function BannerForm({ banner, language }: BannerFormProps) {
     buttonText: banner?.buttonText || "",
     buttonTextEn: banner?.buttonTextEn || "",
     imageId: banner?.imageId || "",
+    backgroundImageId: banner?.backgroundImageId || "",
     linkUrl: banner?.linkUrl || "",
     backgroundColor: banner?.backgroundColor || "#667eea",
     textColor: banner?.textColor || "#ffffff",
@@ -194,7 +195,19 @@ export function BannerForm({ banner, language }: BannerFormProps) {
               {formData.templateId === "hero-split" ? (
                 // Split Layout: Text left, Image right (เหมือนหน้าหลัก)
                 <div className="relative h-full flex items-stretch">
-                  <div className="container mx-auto grid md:grid-cols-2 gap-0 w-full">
+                  {/* Background Image Layer (if exists) */}
+                  {formData.backgroundImageId && (
+                    <div className="absolute inset-0">
+                      <img
+                        src={formData.backgroundImageId}
+                        alt="Background"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/30" />
+                    </div>
+                  )}
+
+                  <div className="container mx-auto grid md:grid-cols-2 gap-0 w-full relative z-10">
                     {/* Left: Content */}
                     <div className="flex items-center px-4">
                       <div>
@@ -403,7 +416,11 @@ export function BannerForm({ banner, language }: BannerFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="imageId">{language === "th" ? "URL รูปภาพ" : "Image URL"}</Label>
+            <Label htmlFor="imageId">
+              {formData.templateId === "hero-split"
+                ? (language === "th" ? "รูปภาพด้านขวา" : "Right Side Image")
+                : (language === "th" ? "รูปภาพพื้นหลัง" : "Background Image")}
+            </Label>
             <div className="flex gap-2">
               <Input
                 id="imageId"
@@ -467,11 +484,89 @@ export function BannerForm({ banner, language }: BannerFormProps) {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              {language === "th"
-                ? "สำหรับ Hero แบบแบ่งครึ่ง: รูปภาพจะแสดงด้านขวา | สำหรับ Hero แบบกลาง: รูปภาพจะเป็น background"
-                : "For Split Hero: Image shows on right | For Centered Hero: Image as background"}
+              {formData.templateId === "hero-split"
+                ? (language === "th"
+                  ? "รูปภาพจะแสดงด้านขวาของ Banner"
+                  : "Image will be displayed on the right side of the banner")
+                : (language === "th"
+                  ? "รูปภาพจะเป็นพื้นหลังของ Banner"
+                  : "Image will be used as the banner background")}
             </p>
           </div>
+
+          {/* Background Image for Split Hero */}
+          {formData.templateId === "hero-split" && (
+            <div className="space-y-2 border-t pt-4">
+              <Label htmlFor="backgroundImageId">{language === "th" ? "รูปภาพพื้นหลัง (ตัวเลือก)" : "Background Image (Optional)"}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="backgroundImageId"
+                  value={formData.backgroundImageId}
+                  onChange={(e) => handleChange("backgroundImageId", e.target.value)}
+                  placeholder="https://example.com/background.jpg"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploading}
+                  onClick={async () => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        setUploading(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append("file", file);
+
+                          const response = await fetch("/api/upload", {
+                            method: "POST",
+                            body: formData,
+                          });
+
+                          if (!response.ok) {
+                            throw new Error("Upload failed");
+                          }
+
+                          const data = await response.json();
+                          if (data.success && data.url) {
+                            handleChange("backgroundImageId", data.url);
+                          } else {
+                            throw new Error(data.error || "Upload failed");
+                          }
+                        } catch (error) {
+                          console.error("Upload error:", error);
+                          alert(
+                            language === "th"
+                              ? "ไม่สามารถอัพโหลดไฟล์ได้ กรุณาลองใหม่อีกครั้ง"
+                              : "Failed to upload file. Please try again."
+                          );
+                        } finally {
+                          setUploading(false);
+                        }
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  {uploading
+                    ? (language === "th" ? "กำลังอัพโหลด..." : "Uploading...")
+                    : (language === "th" ? "อัพโหลด" : "Upload")}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {language === "th"
+                  ? "รูปภาพพื้นหลังจะแสดงข้างหลังข้อความและรูปภาพด้านขวา (หากไม่ระบุจะใช้สีพื้นหลัง)"
+                  : "Background image will be displayed behind text and right image (if not specified, will use background color)"}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

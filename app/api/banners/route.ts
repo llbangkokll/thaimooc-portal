@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { query, execute } from "@/lib/mysql-direct";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const activeOnly = searchParams.get("active");
 
-    const banners = await prisma.banners.findMany({
-      where: activeOnly === "true" ? { isActive: true } : undefined,
-      orderBy: { order: 'asc' },
-    });
+    let sql = 'SELECT * FROM banners';
+    const params: any[] = [];
+
+    if (activeOnly === "true") {
+      sql += ' WHERE isActive = ?';
+      params.push(true);
+    }
+
+    sql += ' ORDER BY `order` ASC';
+
+    const banners = await query(sql, params);
 
     return NextResponse.json({
       success: true,
@@ -44,29 +51,44 @@ export async function POST(request: NextRequest) {
 
     // Generate unique banner ID
     const bannerId = `banner-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const now = new Date();
 
-    const newBanner = await prisma.banners.create({
-      data: {
-        id: bannerId,
-        title: body.title,
-        titleEn: body.titleEn,
-        subtitle: body.subtitle || null,
-        subtitleEn: body.subtitleEn || null,
-        description: body.description || null,
-        descriptionEn: body.descriptionEn || null,
-        buttonText: body.buttonText || null,
-        buttonTextEn: body.buttonTextEn || null,
-        imageId: body.imageId || "",
-        overlayImageId: body.overlayImageId || null,
-        linkUrl: body.linkUrl || null,
-        backgroundColor: body.backgroundColor || null,
-        textColor: body.textColor || null,
-        accentColor: body.accentColor || null,
-        isActive: body.isActive ?? true,
-        order: body.order ?? 0,
-        templateId: body.templateId || null,
-      },
-    });
+    await execute(
+      `INSERT INTO banners (
+        id, title, titleEn, subtitle, subtitleEn, description, descriptionEn,
+        buttonText, buttonTextEn, imageId, backgroundImageId, overlayImageId, linkUrl,
+        backgroundColor, textColor, accentColor, isActive, \`order\`, templateId,
+        createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        bannerId,
+        body.title,
+        body.titleEn,
+        body.subtitle || null,
+        body.subtitleEn || null,
+        body.description || null,
+        body.descriptionEn || null,
+        body.buttonText || null,
+        body.buttonTextEn || null,
+        body.imageId || "",
+        body.backgroundImageId || null,
+        body.overlayImageId || null,
+        body.linkUrl || null,
+        body.backgroundColor || null,
+        body.textColor || null,
+        body.accentColor || null,
+        body.isActive ?? true,
+        body.order ?? 0,
+        body.templateId || null,
+        now,
+        now
+      ]
+    );
+
+    const newBanner = await query(
+      'SELECT * FROM banners WHERE id = ?',
+      [bannerId]
+    );
 
     // Revalidate the cache for banner pages
     revalidatePath("/admin/banners");
@@ -75,7 +97,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: newBanner,
+        data: newBanner[0],
       },
       { status: 201 }
     );
