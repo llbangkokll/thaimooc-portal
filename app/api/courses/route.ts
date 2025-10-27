@@ -25,9 +25,29 @@ interface Course {
   enrollCount: number;
   createdAt: Date;
   updatedAt: Date;
-  course_categories?: { categoryId: string }[];
-  course_course_types?: { courseTypeId: string }[];
-  course_instructors?: { instructorId: string }[];
+  courseCategories?: { categoryId: string }[];
+  courseCourseTypes?: { courseTypeId: string }[];
+  courseInstructors?: { instructorId: string }[];
+}
+
+// Simple in-memory cache with TTL
+const cache = new Map<string, { data: any; expires: number }>();
+const CACHE_TTL = 60 * 1000; // 1 minute
+
+function getCached(key: string) {
+  const cached = cache.get(key);
+  if (cached && cached.expires > Date.now()) {
+    return cached.data;
+  }
+  cache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: any) {
+  cache.set(key, {
+    data,
+    expires: Date.now() + CACHE_TTL
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -36,6 +56,15 @@ export async function GET(request: NextRequest) {
     const categoryId = searchParams.get("categoryId");
     const institutionId = searchParams.get("institutionId");
     const level = searchParams.get("level");
+
+    // Create cache key
+    const cacheKey = `courses:${categoryId || 'all'}:${institutionId || 'all'}:${level || 'all'}`;
+
+    // Check cache first
+    const cachedData = getCached(cacheKey);
+    if (cachedData) {
+      return NextResponse.json(cachedData);
+    }
 
     // Build WHERE clause
     const whereConditions: string[] = [];
@@ -58,39 +87,87 @@ export async function GET(request: NextRequest) {
       ? 'WHERE ' + whereConditions.join(' AND ')
       : '';
 
-    // Fetch courses
+    // Fetch courses - OPTIMIZED: Single query
     const courses = await query<Course>(
       `SELECT * FROM courses c ${whereClause} ORDER BY c.createdAt DESC`,
       params
     );
 
-    // Fetch relations for each course
-    for (const course of courses) {
-      const categories = await query<{ categoryId: string }>(
-        'SELECT categoryId FROM course_categories WHERE courseId = ?',
-        [course.id]
-      );
-      (course as any).courseCategories = categories;
-
-      const courseTypes = await query<{ courseTypeId: string }>(
-        'SELECT courseTypeId FROM course_course_types WHERE courseId = ?',
-        [course.id]
-      );
-      (course as any).courseCourseTypes = courseTypes;
-
-      const instructors = await query<{ instructorId: string }>(
-        'SELECT instructorId FROM course_instructors WHERE courseId = ?',
-        [course.id]
-      );
-      (course as any).courseInstructors = instructors;
+    if (courses.length === 0) {
+      const response = {
+        success: true,
+        data: [],
+        count: 0,
+      };
+      setCache(cacheKey, response);
+      return NextResponse.json(response);
     }
 
-    return NextResponse.json({
+    // Get all course IDs
+    const courseIds = courses.map(c => c.id);
+    const placeholders = courseIds.map(() => '?').join(',');
+
+    // OPTIMIZED: Fetch all relations in 3 queries instead of N queries
+    const [allCategories, allCourseTypes, allInstructors] = await Promise.all([
+      query<{ courseId: string; categoryId: string }>(
+        `SELECT courseId, categoryId FROM course_categories WHERE courseId IN (${placeholders})`,
+        courseIds
+      ),
+      query<{ courseId: string; courseTypeId: string }>(
+        `SELECT courseId, courseTypeId FROM course_course_types WHERE courseId IN (${placeholders})`,
+        courseIds
+      ),
+      query<{ courseId: string; instructorId: string }>(
+        `SELECT courseId, instructorId FROM course_instructors WHERE courseId IN (${placeholders})`,
+        courseIds
+      ),
+    ]);
+
+    // Group relations by courseId
+    const categoriesMap = new Map<string, { categoryId: string }[]>();
+    const courseTypesMap = new Map<string, { courseTypeId: string }[]>();
+    const instructorsMap = new Map<string, { instructorId: string }[]>();
+
+    allCategories.forEach(item => {
+      if (!categoriesMap.has(item.courseId)) {
+        categoriesMap.set(item.courseId, []);
+      }
+      categoriesMap.get(item.courseId)!.push({ categoryId: item.categoryId });
+    });
+
+    allCourseTypes.forEach(item => {
+      if (!courseTypesMap.has(item.courseId)) {
+        courseTypesMap.set(item.courseId, []);
+      }
+      courseTypesMap.get(item.courseId)!.push({ courseTypeId: item.courseTypeId });
+    });
+
+    allInstructors.forEach(item => {
+      if (!instructorsMap.has(item.courseId)) {
+        instructorsMap.set(item.courseId, []);
+      }
+      instructorsMap.get(item.courseId)!.push({ instructorId: item.instructorId });
+    });
+
+    // Attach relations to courses
+    for (const course of courses) {
+      (course as any).courseCategories = categoriesMap.get(course.id) || [];
+      (course as any).courseCourseTypes = courseTypesMap.get(course.id) || [];
+      (course as any).courseInstructors = instructorsMap.get(course.id) || [];
+    }
+
+    const response = {
       success: true,
       data: courses,
       count: courses.length,
-    });
+    };
+
+    // Cache the response
+    setCache(cacheKey, response);
+
+    return NextResponse.json(response);
   } catch (error) {
+    console.error('API Error:', error);
     return NextResponse.json(
       {
         success: false,
@@ -128,7 +205,7 @@ export async function POST(request: NextRequest) {
 
     const { transaction } = await import("@/lib/mysql-direct");
 
-    const courseId = `course-${Date.now()}`;
+    const courseId = `course-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const now = new Date();
 
     await transaction(async (execute) => {
@@ -202,6 +279,9 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Clear cache when new course is added
+    cache.clear();
+
     const { queryOne } = await import("@/lib/mysql-direct");
     const newCourse = await queryOne<Course>(
       'SELECT * FROM courses WHERE id = ?',
@@ -216,6 +296,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    console.error('API Error:', error);
     return NextResponse.json(
       {
         success: false,
