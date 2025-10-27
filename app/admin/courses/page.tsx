@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Download } from "lucide-react";
 import { CoursesList } from "@/components/admin/courses-list";
 import { CourseImportDialog } from "@/components/admin/course-import-dialog";
-import type { Course, Category, Instructor, Institution } from "@/lib/types";
+import type { Course, CourseWithRelations, Category, Instructor, Institution } from "@/lib/types";
 
 export default function AdminCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -72,9 +72,10 @@ export default function AdminCoursesPage() {
       const instructor = instructors.find(i => i.id === course.instructorId);
 
       // Get category IDs for this course
-      const courseCategories = (course as any).courseCategories || [];
+      const courseWithRelations = course as CourseWithRelations;
+      const courseCategories = courseWithRelations.courseCategories || [];
       const categoryIds = courseCategories
-        .map((cc: any) => cc.categoryId)
+        .map((cc) => cc.categoryId)
         .filter(Boolean)
         .join(',');
 
@@ -119,6 +120,9 @@ export default function AdminCoursesPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // Clean up to prevent memory leak
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {

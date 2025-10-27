@@ -28,6 +28,11 @@ export interface Course {
   updatedAt: Date;
 }
 
+export interface CourseWithRelations extends Course {
+  courseCategories?: { categoryId: string }[];
+  courseCourseTypes?: { courseTypeId: string }[];
+}
+
 export interface ContentTopic {
   id: string;
   title: string;

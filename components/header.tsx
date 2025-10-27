@@ -113,6 +113,9 @@ export function Header() {
                 size="sm"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="md:hidden"
+                aria-label={t("เปิดเมนู", "Open menu")}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-menu"
               >
                 <Menu className="h-5 w-5" />
               </Button>
@@ -124,16 +127,21 @@ export function Header() {
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-50 md:hidden"
+          className="fixed inset-0 bg-black/50 z-[60] md:hidden"
           onClick={() => setMobileMenuOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       {/* Mobile Menu Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
+        id="mobile-menu"
+        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-[70] transform transition-transform duration-300 ease-in-out md:hidden ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("เมนูหลัก", "Main Menu")}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -159,6 +167,7 @@ export function Header() {
               variant="ghost"
               size="sm"
               onClick={() => setMobileMenuOpen(false)}
+              aria-label={t("ปิดเมนู", "Close menu")}
             >
               <X className="h-5 w-5" />
             </Button>
